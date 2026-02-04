@@ -43,6 +43,37 @@ const steps = [
       return res.rowCount === 0;
     },
   },
+  {
+    name: '004_mortgage_terms.sql',
+    shouldRun: async () => {
+      const rate = await client.query(
+        "select 1 from information_schema.columns where table_schema='public' and table_name='assets' and column_name='mortgage_rate' limit 1"
+      );
+      const payment = await client.query(
+        "select 1 from information_schema.columns where table_schema='public' and table_name='assets' and column_name='monthly_payment' limit 1"
+      );
+      return rate.rowCount === 0 || payment.rowCount === 0;
+    },
+  },
+  {
+    name: '005_real_estate_ownership.sql',
+    shouldRun: async () => {
+      const res = await client.query(
+        "select 1 from information_schema.columns where table_schema='public' and table_name='assets' and column_name='ownership_percent' limit 1"
+      );
+      return res.rowCount === 0;
+    },
+  },
+  {
+    name: '006_tax_advantaged.sql',
+    shouldRun: async () => {
+      const accountType = await client.query(
+        "select 1 from information_schema.columns where table_schema='public' and table_name='assets' and column_name='account_type' limit 1"
+      );
+      const enumRes = await client.query("select 1 from pg_type t join pg_enum e on t.oid = e.enumtypid where t.typname = 'asset_type' and e.enumlabel = 'tax_advantaged' limit 1");
+      return accountType.rowCount === 0 || enumRes.rowCount === 0;
+    },
+  },
 ];
 
 const runMigration = async (fileName) => {

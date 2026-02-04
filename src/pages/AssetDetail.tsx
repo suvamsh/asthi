@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { LabelInput } from '../components/ui/LabelInput';
-import { formatCurrency, getAssetTypeLabel } from '../lib/calculations';
+import { formatCurrency, getAssetTypeLabel, getTotalCostBasis, getMonthlyMortgageBreakdown, getRealEstateMortgageBalance } from '../lib/calculations';
 import type { Asset, AssetWithValueAndLabels, Label } from '../types';
 
 interface AssetDetailProps {
@@ -31,8 +31,12 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
   const [shares, setShares] = useState('');
   const [currentValue, setCurrentValue] = useState('');
   const [mortgageAmount, setMortgageAmount] = useState('');
+  const [mortgageRate, setMortgageRate] = useState('');
+  const [monthlyPayment, setMonthlyPayment] = useState('');
+  const [ownershipPercent, setOwnershipPercent] = useState('');
   const [weightOz, setWeightOz] = useState('');
   const [manualValue, setManualValue] = useState('');
+  const [accountType, setAccountType] = useState('');
   const [costBasis, setCostBasis] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -45,8 +49,12 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
       setShares(asset.shares?.toString() || '');
       setCurrentValue(asset.current_value?.toString() || '');
       setMortgageAmount(asset.mortgage_amount?.toString() || '');
+      setMortgageRate(asset.mortgage_rate?.toString() || '');
+      setMonthlyPayment(asset.monthly_payment?.toString() || '');
+      setOwnershipPercent((asset.ownership_percent ?? 100).toString());
       setWeightOz(asset.weight_oz?.toString() || '');
       setManualValue(asset.manual_value?.toString() || '');
+      setAccountType(asset.account_type || '');
       setCostBasis(asset.cost_basis?.toString() || '');
       setPurchaseDate(asset.purchase_date || '');
       setNotes(asset.notes || '');
@@ -75,12 +83,17 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
         updates.shares = parseFloat(shares) || undefined;
         updates.purchase_date = purchaseDate || undefined;
       } else if (asset.type === 'real_estate') {
+        updates.purchase_date = purchaseDate || undefined;
         updates.current_value = parseFloat(currentValue) || undefined;
         updates.mortgage_amount = parseFloat(mortgageAmount) || undefined;
+        updates.mortgage_rate = parseFloat(mortgageRate) || undefined;
+        updates.monthly_payment = parseFloat(monthlyPayment) || undefined;
+        updates.ownership_percent = Math.max(0, Math.min(100, parseFloat(ownershipPercent) || 0));
       } else if (asset.type === 'gold') {
         updates.weight_oz = parseFloat(weightOz) || undefined;
       } else {
         updates.manual_value = parseFloat(manualValue) || undefined;
+        updates.account_type = asset.type === 'tax_advantaged' ? (accountType || undefined) : undefined;
       }
 
       await onUpdateAsset(asset.id, updates);
@@ -133,8 +146,9 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
             <div className="text-right">
               <p className="text-sm text-[#8a8a8a]">Gain/Loss</p>
               {(() => {
-                const gainLoss = asset.calculated_value - asset.cost_basis;
-                const gainLossPercent = (gainLoss / asset.cost_basis) * 100;
+                const totalCostBasis = getTotalCostBasis(asset);
+                const gainLoss = asset.calculated_value - totalCostBasis;
+                const gainLossPercent = totalCostBasis > 0 ? (gainLoss / totalCostBasis) * 100 : 0;
                 const isPositive = gainLoss >= 0;
                 return (
                   <>
@@ -193,6 +207,12 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
           {asset.type === 'real_estate' && (
             <>
               <Input
+                label="Purchase Date"
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+              />
+              <Input
                 label="Current Estimated Value"
                 type="number"
                 value={currentValue}
@@ -201,13 +221,67 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
                 step="1000"
               />
               <Input
-                label="Current Mortgage Balance"
+                label="Original Mortgage Amount"
                 type="number"
                 value={mortgageAmount}
                 onChange={(e) => setMortgageAmount(e.target.value)}
                 min="0"
                 step="1000"
               />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Mortgage Rate (APR %)"
+                  type="number"
+                  value={mortgageRate}
+                  onChange={(e) => setMortgageRate(e.target.value)}
+                  min="0"
+                  step="0.001"
+                />
+                <Input
+                  label="Monthly Payment"
+                  type="number"
+                  value={monthlyPayment}
+                  onChange={(e) => setMonthlyPayment(e.target.value)}
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <Input
+                label="Ownership (%)"
+                type="number"
+                value={ownershipPercent}
+                onChange={(e) => setOwnershipPercent(e.target.value)}
+                min="0"
+                max="100"
+                step="0.01"
+                helpText="Your ownership stake in the property"
+              />
+              {(() => {
+                const breakdown = getMonthlyMortgageBreakdown({
+                  ...asset,
+                  mortgage_amount: parseFloat(mortgageAmount) || undefined,
+                  mortgage_rate: parseFloat(mortgageRate) || undefined,
+                  monthly_payment: parseFloat(monthlyPayment) || undefined,
+                });
+                if (!breakdown) return null;
+                const estimatedBalance = getRealEstateMortgageBalance({
+                  ...asset,
+                  mortgage_amount: parseFloat(mortgageAmount) || undefined,
+                  mortgage_rate: parseFloat(mortgageRate) || undefined,
+                  monthly_payment: parseFloat(monthlyPayment) || undefined,
+                });
+                return (
+                  <div className="p-3 bg-[#4ec9b0]/10 border border-[#4ec9b0]/30 rounded-lg">
+                    <p className="text-sm text-[#4ec9b0] mb-1">Monthly Payment Breakdown</p>
+                    <p className="text-xs text-[#4ec9b0]/70">
+                      Interest: {formatCurrency(breakdown.interest)} · Principal: {formatCurrency(breakdown.principal)}
+                    </p>
+                    <p className="text-xs text-[#4ec9b0]/70 mt-1">
+                      Estimated Balance: {formatCurrency(estimatedBalance)}
+                    </p>
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -222,7 +296,7 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
             />
           )}
 
-          {['cash', 'crypto', 'other'].includes(asset.type) && (
+          {['cash', 'crypto', 'other', 'tax_advantaged'].includes(asset.type) && (
             <Input
               label="Current Value"
               type="number"
@@ -233,15 +307,24 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
             />
           )}
 
-          {asset.type !== 'cash' && asset.type !== 'real_estate' && (
+          {asset.type === 'tax_advantaged' && (
             <Input
-              label="Cost Basis (Total)"
+              label="Account Type"
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value)}
+              placeholder="e.g., 401k, Roth IRA"
+            />
+          )}
+
+          {asset.type !== 'cash' && asset.type !== 'real_estate' && asset.type !== 'tax_advantaged' && (
+            <Input
+              label={asset.type === 'stock' ? 'Cost Basis (Per Share)' : 'Cost Basis (Total)'}
               type="number"
               value={costBasis}
               onChange={(e) => setCostBasis(e.target.value)}
               min="0"
               step="0.01"
-              helpText="Total amount paid for purchase"
+              helpText={asset.type === 'stock' ? 'Price paid per share' : 'Total amount paid for purchase'}
             />
           )}
 

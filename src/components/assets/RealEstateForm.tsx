@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { LabelInput } from '../ui/LabelInput';
-import { formatCurrency } from '../../lib/calculations';
+import { formatCurrency, calculateMortgageBalance, getElapsedMonths } from '../../lib/calculations';
 import type { Label } from '../../types';
 
 interface RealEstateFormData {
@@ -11,6 +11,9 @@ interface RealEstateFormData {
   purchase_date: string;
   down_payment: number;
   mortgage_amount: number;
+  mortgage_rate?: number;
+  monthly_payment?: number;
+  ownership_percent?: number;
   current_value: number;
   notes?: string;
   labelIds?: string[];
@@ -30,6 +33,9 @@ export function RealEstateForm({ onSubmit, onCancel, loading, labels, onCreateLa
   const [purchaseDate, setPurchaseDate] = useState('');
   const [downPayment, setDownPayment] = useState('');
   const [mortgageAmount, setMortgageAmount] = useState('');
+  const [mortgageRate, setMortgageRate] = useState('');
+  const [monthlyPayment, setMonthlyPayment] = useState('');
+  const [ownershipPercent, setOwnershipPercent] = useState('100');
   const [currentValue, setCurrentValue] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
@@ -37,9 +43,24 @@ export function RealEstateForm({ onSubmit, onCancel, loading, labels, onCreateLa
   const purchasePriceNum = parseFloat(purchasePrice) || 0;
   const downPaymentNum = parseFloat(downPayment) || 0;
   const mortgageNum = parseFloat(mortgageAmount) || 0;
+  const mortgageRateNum = parseFloat(mortgageRate) || 0;
+  const monthlyPaymentNum = parseFloat(monthlyPayment) || 0;
+  const ownershipPercentNum = Math.max(0, Math.min(100, parseFloat(ownershipPercent) || 0));
   const currentValueNum = parseFloat(currentValue) || purchasePriceNum;
 
-  const equity = currentValueNum - mortgageNum;
+  const monthsElapsed = purchaseDate ? getElapsedMonths(purchaseDate) : 0;
+  const computedMortgageBalance = (
+    mortgageNum > 0
+    && mortgageRateNum > 0
+    && monthlyPaymentNum > 0
+    && monthsElapsed > 0
+  )
+    ? calculateMortgageBalance(mortgageNum, mortgageRateNum, monthlyPaymentNum, monthsElapsed)
+    : mortgageNum;
+
+  const equity = (currentValueNum - computedMortgageBalance) * (ownershipPercentNum / 100);
+  const monthlyInterest = mortgageRateNum > 0 ? mortgageNum * (mortgageRateNum / 100 / 12) : 0;
+  const monthlyPrincipal = monthlyPaymentNum > 0 ? Math.max(0, monthlyPaymentNum - monthlyInterest) : 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +72,9 @@ export function RealEstateForm({ onSubmit, onCancel, loading, labels, onCreateLa
       purchase_date: purchaseDate,
       down_payment: downPaymentNum,
       mortgage_amount: mortgageNum,
+      mortgage_rate: mortgageRateNum > 0 ? mortgageRateNum : undefined,
+      monthly_payment: monthlyPaymentNum > 0 ? monthlyPaymentNum : undefined,
+      ownership_percent: ownershipPercentNum,
       current_value: currentValueNum,
       notes: notes || undefined,
       labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
@@ -101,16 +125,50 @@ export function RealEstateForm({ onSubmit, onCancel, loading, labels, onCreateLa
         />
 
         <Input
-          label="Current Mortgage Balance"
+          label="Original Mortgage Amount"
           type="number"
           placeholder="200000"
           value={mortgageAmount}
           onChange={(e) => setMortgageAmount(e.target.value)}
           min="0"
           step="1000"
-          helpText="Remaining balance owed"
+          helpText="Starting loan balance (used for amortization)"
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label="Mortgage Rate (APR %)"
+          type="number"
+          placeholder="6.5"
+          value={mortgageRate}
+          onChange={(e) => setMortgageRate(e.target.value)}
+          min="0"
+          step="0.001"
+        />
+
+        <Input
+          label="Monthly Payment"
+          type="number"
+          placeholder="1800"
+          value={monthlyPayment}
+          onChange={(e) => setMonthlyPayment(e.target.value)}
+          min="0"
+          step="1"
+        />
+      </div>
+
+      <Input
+        label="Ownership (%)"
+        type="number"
+        placeholder="100"
+        value={ownershipPercent}
+        onChange={(e) => setOwnershipPercent(e.target.value)}
+        min="0"
+        max="100"
+        step="0.01"
+        helpText="Your ownership stake in the property"
+      />
 
       <Input
         label="Current Estimated Value"
@@ -142,8 +200,13 @@ export function RealEstateForm({ onSubmit, onCancel, loading, labels, onCreateLa
           <p className="text-sm text-[#4ec9b0] mb-1">Estimated Equity</p>
           <p className="text-2xl font-bold text-[#4ec9b0]">{formatCurrency(equity)}</p>
           <p className="text-xs text-[#4ec9b0]/70 mt-1">
-            Current Value ({formatCurrency(currentValueNum)}) - Mortgage ({formatCurrency(mortgageNum)})
+            Current Value ({formatCurrency(currentValueNum)}) - Mortgage ({formatCurrency(computedMortgageBalance)}) × {ownershipPercentNum}%
           </p>
+          {monthlyPaymentNum > 0 && mortgageRateNum > 0 && (
+            <p className="text-xs text-[#4ec9b0]/70 mt-1">
+              Monthly breakdown: {formatCurrency(monthlyInterest)} interest, {formatCurrency(monthlyPrincipal)} principal
+            </p>
+          )}
         </div>
       )}
 

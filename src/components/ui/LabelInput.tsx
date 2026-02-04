@@ -21,19 +21,24 @@ export function LabelInput({
   const [inputValue, setInputValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedLabels = labels.filter(l => selectedLabelIds.includes(l.id));
   const normalizedInput = inputValue.toLowerCase().trim();
 
+  const normalizeLabelName = (name: string) => name.toLowerCase().trim();
+
   // Filter labels based on input, excluding already selected
   const filteredLabels = labels.filter(
-    l => !selectedLabelIds.includes(l.id) && l.name.includes(normalizedInput)
+    l =>
+      !selectedLabelIds.includes(l.id) &&
+      normalizeLabelName(l.name).includes(normalizedInput)
   );
 
   // Check if input matches an existing label exactly
-  const exactMatch = labels.find(l => l.name === normalizedInput);
+  const exactMatch = labels.find(l => normalizeLabelName(l.name) === normalizedInput);
   const canCreateNew = normalizedInput.length > 0 && !exactMatch;
 
   // Close dropdown when clicking outside
@@ -65,13 +70,19 @@ export function LabelInput({
     if (!canCreateNew || creating) return;
 
     setCreating(true);
+    setErrorMessage(null);
     try {
-      const newLabel = await onCreateLabel(normalizedInput);
+      const newLabel = await onCreateLabel(inputValue.trim());
       if (newLabel) {
         onChange([...selectedLabelIds, newLabel.id]);
         setInputValue('');
         setShowDropdown(false);
+      } else {
+        setErrorMessage('Could not create label. Please try again.');
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create label.';
+      setErrorMessage(message);
     } finally {
       setCreating(false);
     }
@@ -121,13 +132,24 @@ export function LabelInput({
           ref={inputRef}
           type="text"
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            if (errorMessage) {
+              setErrorMessage(null);
+            }
+          }}
           onFocus={() => setShowDropdown(true)}
           onKeyDown={handleKeyDown}
           placeholder={selectedLabels.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[100px] bg-transparent border-none outline-none text-[#cccccc] placeholder-[#6e6e6e] text-sm"
         />
       </div>
+
+      {errorMessage && (
+        <p className="mt-1 text-xs text-[#f14c4c]">
+          {errorMessage}
+        </p>
+      )}
 
       {showDropdown && (inputValue.length > 0 || filteredLabels.length > 0) && (
         <div className="relative">

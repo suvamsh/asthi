@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, Edit2, TrendingUp, Building2, Coins, Wallet, Bitcoin, Package } from 'lucide-react';
+import { Plus, Trash2, Edit2, TrendingUp, Building2, Coins, Wallet, Bitcoin, Package, PiggyBank } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { LabelChip } from '../components/ui/LabelChip';
 import { AddAssetModal } from '../components/assets/AddAssetModal';
-import { formatCurrency, getAssetTypeLabel } from '../lib/calculations';
+import { formatCurrency, getAssetTypeLabel, getRealEstateMortgageBalance } from '../lib/calculations';
 import type { Asset, AssetWithValueAndLabels, AssetType, Label } from '../types';
 
 interface AssetsProps {
@@ -23,6 +23,7 @@ const assetIcons: Record<AssetType, typeof TrendingUp> = {
   gold: Coins,
   cash: Wallet,
   crypto: Bitcoin,
+  tax_advantaged: PiggyBank,
   other: Package,
 };
 
@@ -129,11 +130,24 @@ export function Assets({ assets, loading, onAddAsset, onDeleteAsset, labels, onC
                           )}
                         </div>
                         <p className="text-sm text-[#8a8a8a]">
-                          {asset.ticker && `${asset.ticker} · `}
+                          {asset.ticker && (
+                            <>
+                              <Link
+                                to={`/holdings/${encodeURIComponent(asset.ticker)}`}
+                                className="text-[#4fc1ff] hover:text-[#6dd0ff]"
+                              >
+                                {asset.ticker}
+                              </Link>
+                              {' · '}
+                            </>
+                          )}
                           {asset.shares && `${asset.shares} shares`}
                           {asset.weight_oz && `${asset.weight_oz.toFixed(2)} oz`}
+                          {asset.type === 'tax_advantaged' && asset.account_type && (
+                            <>{asset.account_type}</>
+                          )}
                           {asset.type === 'real_estate' && asset.mortgage_amount && (
-                            <>Mortgage: {formatCurrency(asset.mortgage_amount)}</>
+                            <>Mortgage (est.): {formatCurrency(getRealEstateMortgageBalance(asset))}</>
                           )}
                         </p>
                       </div>

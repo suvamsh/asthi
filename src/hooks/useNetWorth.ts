@@ -9,7 +9,22 @@ import {
 } from '../lib/calculations';
 import type { NetWorthHistory, AssetWithLabels, AssetWithValueAndLabels } from '../types';
 
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+const isSameLocalDay = (a: Date, b: Date) => {
+  return (
+    a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate()
+  );
+};
+
+const getLocalDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 interface PriceData {
   stockPrices: Record<string, number>;
@@ -44,9 +59,16 @@ export function useNetWorth(userId: string | undefined, assets: AssetWithLabels[
   // Fetch stock prices
   const fetchPrices = useCallback(async () => {
     const now = Date.now();
+    const missingTickers = stockTickers.filter(ticker => !priceData.stockPrices[ticker]);
+    const needsGold = hasGold && (priceData.goldPrice === null);
 
-    // Skip if cache is still valid
-    if (now - priceData.lastUpdated < CACHE_DURATION) {
+    // Skip if we've already updated today
+    if (
+      priceData.lastUpdated > 0
+      && isSameLocalDay(new Date(priceData.lastUpdated), new Date(now))
+      && missingTickers.length === 0
+      && !needsGold
+    ) {
       return;
     }
 
@@ -64,7 +86,7 @@ export function useNetWorth(userId: string | undefined, assets: AssetWithLabels[
           .eq('ticker', ticker)
           .single();
 
-        if (cached && new Date(cached.updated_at).getTime() > now - CACHE_DURATION) {
+        if (cached && isSameLocalDay(new Date(cached.updated_at), new Date(now))) {
           newPrices[ticker] = cached.price;
           continue;
         }
@@ -137,7 +159,7 @@ export function useNetWorth(userId: string | undefined, assets: AssetWithLabels[
     const totalValue = calculateTotalNetWorth(assets, priceData.stockPrices, priceData.goldPrice);
     const breakdown = calculateAssetsByType(assets, priceData.stockPrices, priceData.goldPrice);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString(new Date());
 
     const { error } = await supabase
       .from('net_worth_history')
@@ -168,6 +190,19 @@ export function useNetWorth(userId: string | undefined, assets: AssetWithLabels[
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  // Save daily snapshot once we have prices for today
+  useEffect(() => {
+    if (!userId) return;
+    if (assets.length === 0) return;
+    if (priceData.lastUpdated === 0) return;
+
+    const today = getLocalDateString(new Date());
+    const hasToday = history.some(entry => entry.date === today);
+    if (!hasToday) {
+      saveSnapshot();
+    }
+  }, [userId, assets.length, priceData.lastUpdated, history, saveSnapshot]);
 
   // Calculate derived values
   const totalNetWorth = useMemo(() => {

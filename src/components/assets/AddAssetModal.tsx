@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, Building2, Coins, Wallet } from 'lucide-react';
+import { TrendingUp, Building2, Coins, Wallet, PiggyBank } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { StockForm } from './StockForm';
 import { RealEstateForm } from './RealEstateForm';
@@ -29,12 +29,13 @@ interface AddAssetModalProps {
   onCreateLabel: (name: string) => Promise<Label | null>;
 }
 
-type AssetCategory = 'stock' | 'real_estate' | 'gold' | 'manual';
+type AssetCategory = 'stock' | 'real_estate' | 'gold' | 'tax_advantaged' | 'manual';
 
 const assetCategories = [
   { id: 'stock' as const, label: 'Stocks', icon: TrendingUp, description: 'Track shares and market value' },
   { id: 'real_estate' as const, label: 'Real Estate', icon: Building2, description: 'Track properties and equity' },
   { id: 'gold' as const, label: 'Gold', icon: Coins, description: 'Track precious metals' },
+  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, description: '401(k), Roth IRA, HSA' },
   { id: 'manual' as const, label: 'Other', icon: Wallet, description: 'Cash, crypto, or other assets' },
 ];
 
@@ -94,6 +95,18 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
       case 'manual':
         return (
           <ManualAssetForm
+            onSubmit={(data) => handleSubmit(data)}
+            onCancel={() => setSelectedCategory(null)}
+            loading={loading}
+            labels={labels}
+            onCreateLabel={onCreateLabel}
+          />
+        );
+      case 'tax_advantaged':
+        return (
+          <ManualAssetForm
+            defaultType="tax_advantaged"
+            lockType
             onSubmit={(data) => handleSubmit(data)}
             onCancel={() => setSelectedCategory(null)}
             loading={loading}

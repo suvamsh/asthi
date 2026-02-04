@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, TrendingUp, Building2, Coins, Wallet, Bitcoin, Package } from 'lucide-react';
+import { ChevronRight, TrendingUp, Building2, Coins, Wallet, Bitcoin, Package, PiggyBank } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '../ui/Card';
 import { formatCurrency, getAssetTypeLabel } from '../../lib/calculations';
 import type { AssetWithValue, AssetType } from '../../types';
@@ -15,6 +15,7 @@ const assetIcons: Record<AssetType, typeof TrendingUp> = {
   gold: Coins,
   cash: Wallet,
   crypto: Bitcoin,
+  tax_advantaged: PiggyBank,
   other: Package,
 };
 
@@ -28,7 +29,45 @@ const assetColors: Record<AssetType, string> = {
 };
 
 export function AssetList({ assets, loading }: AssetListProps) {
-  const sortedAssets = [...assets].sort((a, b) => b.calculated_value - a.calculated_value);
+  const stockHoldingsMap = new Map<string, { name: string; ticker: string; value: number; shares: number }>();
+  const nonStockAssets: AssetWithValue[] = [];
+
+  for (const asset of assets) {
+    if (asset.type === 'stock' && asset.ticker) {
+      const key = asset.ticker.toUpperCase();
+      const existing = stockHoldingsMap.get(key);
+      const shares = asset.shares || 0;
+      if (existing) {
+        existing.value += asset.calculated_value;
+        existing.shares += shares;
+      } else {
+        stockHoldingsMap.set(key, {
+          name: asset.name,
+          ticker: key,
+          value: asset.calculated_value,
+          shares,
+        });
+      }
+    } else {
+      nonStockAssets.push(asset);
+    }
+  }
+
+  const aggregatedStocks = Array.from(stockHoldingsMap.values()).map((holding) => ({
+    id: `stock:${holding.ticker}`,
+    type: 'stock' as const,
+    name: holding.name,
+    ticker: holding.ticker,
+    calculated_value: holding.value,
+    shares: holding.shares,
+  }));
+
+  const combinedHoldings = [
+    ...aggregatedStocks,
+    ...nonStockAssets,
+  ];
+
+  const sortedAssets = combinedHoldings.sort((a, b) => b.calculated_value - a.calculated_value);
   const topAssets = sortedAssets.slice(0, 5);
 
   return (
@@ -67,10 +106,13 @@ export function AssetList({ assets, loading }: AssetListProps) {
           {topAssets.map((asset) => {
             const Icon = assetIcons[asset.type];
             const color = assetColors[asset.type];
+            const destination = asset.type === 'stock' && asset.ticker
+              ? `/holdings/${encodeURIComponent(asset.ticker)}`
+              : `/assets/${asset.id}`;
             return (
               <li key={asset.id}>
                 <Link
-                  to={`/assets/${asset.id}`}
+                  to={destination}
                   className="flex items-center gap-4 px-6 py-4 hover:bg-[#2a2d2e] transition-colors"
                 >
                   <div

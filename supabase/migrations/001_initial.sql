@@ -4,7 +4,7 @@
 create extension if not exists "uuid-ossp";
 
 -- Create asset_type enum
-create type asset_type as enum ('stock', 'real_estate', 'gold', 'cash', 'crypto', 'other');
+create type asset_type as enum ('stock', 'real_estate', 'gold', 'cash', 'crypto', 'tax_advantaged', 'other');
 
 -- Profiles table (extends Supabase Auth)
 create table profiles (
@@ -65,6 +65,7 @@ create table assets (
 
   -- Generic
   manual_value numeric,
+  account_type text,
   notes text,
 
   created_at timestamptz default now(),

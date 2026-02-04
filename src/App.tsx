@@ -1,15 +1,17 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
 import { useNetWorth } from './hooks/useNetWorth';
 import { useLabels } from './hooks/useLabels';
-import { isSupabaseConfigured } from './lib/supabase';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Assets } from './pages/Assets';
 import { AddAsset } from './pages/AddAsset';
 import { AssetDetail } from './pages/AssetDetail';
+import { StockHoldings } from './pages/StockHoldings';
 import { Card } from './components/ui/Card';
 
 function SetupRequired() {
@@ -116,6 +118,37 @@ function AppContent() {
     setAssetLabels,
   } = useLabels(user?.id);
 
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let cancelled = false;
+    const ensureProfile = async () => {
+      const displayName = (user.user_metadata?.full_name as string | undefined)
+        || (user.user_metadata?.name as string | undefined)
+        || null;
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            display_name: displayName,
+          },
+          { onConflict: 'id' }
+        );
+
+      if (!cancelled && error) {
+        console.error('Error ensuring profile:', error);
+      }
+    };
+
+    ensureProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.user_metadata]);
+
   // Wrapper to refetch assets after setting labels
   const handleSetAssetLabels = async (assetId: string, labelIds: string[]) => {
     await setAssetLabels(assetId, labelIds);
@@ -191,6 +224,15 @@ function AppContent() {
               labels={labels}
               onCreateLabel={createLabel}
               onSetAssetLabels={handleSetAssetLabels}
+            />
+          }
+        />
+        <Route
+          path="/holdings/:ticker"
+          element={
+            <StockHoldings
+              assets={assetsWithValues}
+              stockPrices={stockPrices}
             />
           }
         />

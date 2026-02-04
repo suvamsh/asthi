@@ -38,7 +38,7 @@ export function NetWorthCard({ totalNetWorth, change, changePercent, loading, is
         </div>
       )}
 
-      {change === null && !isFiltered && (
+      {change === null && !isFiltered && totalNetWorth === 0 && (
         <p className="text-[#8a8a8a] text-sm mt-2">
           Add assets to start tracking your net worth
         </p>

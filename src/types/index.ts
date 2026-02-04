@@ -1,4 +1,4 @@
-export type AssetType = 'stock' | 'real_estate' | 'gold' | 'cash' | 'crypto' | 'other';
+export type AssetType = 'stock' | 'real_estate' | 'gold' | 'cash' | 'crypto' | 'tax_advantaged' | 'other';
 
 export interface Asset {
   id: string;
@@ -15,6 +15,9 @@ export interface Asset {
   purchase_date?: string;
   down_payment?: number;
   mortgage_amount?: number;
+  mortgage_rate?: number;
+  monthly_payment?: number;
+  ownership_percent?: number;
   current_value?: number;
 
   // Gold-specific
@@ -22,6 +25,7 @@ export interface Asset {
 
   // Generic
   manual_value?: number;
+  account_type?: string;
   notes?: string;
   cost_basis?: number;
 

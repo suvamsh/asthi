@@ -9,7 +9,13 @@ export function calculateAssetValue(
     case 'stock':
       if (asset.ticker && asset.shares) {
         const price = stockPrices[asset.ticker] || 0;
-        return price * asset.shares;
+        if (price > 0) {
+          return price * asset.shares;
+        }
+        if (asset.cost_basis && asset.cost_basis > 0) {
+          return asset.cost_basis * asset.shares;
+        }
+        return 0;
       }
       return 0;
 
@@ -25,6 +31,7 @@ export function calculateAssetValue(
 
     case 'cash':
     case 'crypto':
+    case 'tax_advantaged':
     case 'other':
     default:
       return asset.manual_value || 0;
@@ -35,9 +42,11 @@ export function calculateRealEstateEquity(asset: Asset): number {
   if (asset.type !== 'real_estate') return 0;
 
   const currentValue = asset.current_value || asset.purchase_price || 0;
-  const mortgageBalance = asset.mortgage_amount || 0;
+  const mortgageBalance = getRealEstateMortgageBalance(asset);
+  const ownership = asset.ownership_percent ?? 100;
+  const ownershipFactor = Math.max(0, Math.min(ownership, 100)) / 100;
 
-  return currentValue - mortgageBalance;
+  return (currentValue - mortgageBalance) * ownershipFactor;
 }
 
 export function calculateTotalNetWorth(
@@ -64,6 +73,7 @@ export function calculateAssetsByType(
     gold: 0,
     cash: 0,
     crypto: 0,
+    tax_advantaged: 0,
     other: 0,
   };
 
@@ -124,6 +134,7 @@ export function getAssetTypeLabel(type: AssetType): string {
     gold: 'Gold',
     cash: 'Cash',
     crypto: 'Crypto',
+    tax_advantaged: 'Tax Advantaged',
     other: 'Other',
   };
   return labels[type];
@@ -136,9 +147,79 @@ export function getAssetTypeColor(type: AssetType): string {
     gold: '#f59e0b',      // amber
     cash: '#6366f1',      // indigo
     crypto: '#8b5cf6',    // violet
+    tax_advantaged: '#22c55e', // emerald
     other: '#6b7280',     // gray
   };
   return colors[type];
+}
+
+export function getElapsedMonths(startDate: string, asOfDate: Date = new Date()): number {
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return 0;
+
+  let months = (asOfDate.getFullYear() - start.getFullYear()) * 12
+    + (asOfDate.getMonth() - start.getMonth());
+
+  if (asOfDate.getDate() < start.getDate()) {
+    months -= 1;
+  }
+
+  return Math.max(0, months);
+}
+
+export function calculateMortgageBalance(
+  principal: number,
+  annualRatePercent: number,
+  monthlyPayment: number,
+  monthsElapsed: number
+): number {
+  if (principal <= 0) return 0;
+  if (monthsElapsed <= 0) return principal;
+  if (monthlyPayment <= 0) return principal;
+
+  const monthlyRate = annualRatePercent / 100 / 12;
+
+  if (monthlyRate === 0) {
+    return Math.max(0, principal - monthlyPayment * monthsElapsed);
+  }
+
+  const growth = Math.pow(1 + monthlyRate, monthsElapsed);
+  const balance = principal * growth - monthlyPayment * ((growth - 1) / monthlyRate);
+
+  return Math.max(0, balance);
+}
+
+export function getRealEstateMortgageBalance(asset: Asset, asOfDate: Date = new Date()): number {
+  if (asset.type !== 'real_estate') return 0;
+
+  const principal = asset.mortgage_amount || 0;
+  const rate = asset.mortgage_rate || 0;
+  const payment = asset.monthly_payment || 0;
+  const purchaseDate = asset.purchase_date;
+
+  if (!principal || !rate || !payment || !purchaseDate) {
+    return principal;
+  }
+
+  const monthsElapsed = getElapsedMonths(purchaseDate, asOfDate);
+  return calculateMortgageBalance(principal, rate, payment, monthsElapsed);
+}
+
+export function getMonthlyMortgageBreakdown(
+  asset: Asset,
+  asOfDate: Date = new Date()
+): { interest: number; principal: number; balance: number } | null {
+  if (asset.type !== 'real_estate') return null;
+  if (!asset.mortgage_amount || !asset.mortgage_rate || !asset.monthly_payment || !asset.purchase_date) {
+    return null;
+  }
+
+  const balance = getRealEstateMortgageBalance(asset, asOfDate);
+  const monthlyRate = asset.mortgage_rate / 100 / 12;
+  const interest = balance * monthlyRate;
+  const principal = Math.max(0, asset.monthly_payment - interest);
+
+  return { interest, principal, balance };
 }
 
 /**
@@ -169,6 +250,17 @@ export interface PortfolioPerformance {
   gainLossPercent: number;
 }
 
+export function getTotalCostBasis(asset: AssetWithValue): number {
+  if (!asset.cost_basis || asset.cost_basis <= 0) return 0;
+
+  if (asset.type === 'stock') {
+    const shares = asset.shares || 0;
+    return asset.cost_basis * shares;
+  }
+
+  return asset.cost_basis;
+}
+
 /**
  * Calculate portfolio performance metrics for assets with cost basis
  */
@@ -181,7 +273,7 @@ export function calculatePortfolioPerformance(
   );
 
   const totalCostBasis = assetsWithCostBasis.reduce(
-    (sum, asset) => sum + (asset.cost_basis || 0),
+    (sum, asset) => sum + getTotalCostBasis(asset),
     0
   );
 

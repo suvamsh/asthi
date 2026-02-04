@@ -45,7 +45,7 @@ export function useLabels(userId: string | undefined) {
     if (!normalizedName) return null;
 
     // Check if label already exists
-    const existing = labels.find(l => l.name === normalizedName);
+    const existing = labels.find(l => l.name.toLowerCase().trim() === normalizedName);
     if (existing) return existing;
 
     const { data, error } = await supabase
@@ -59,13 +59,16 @@ export function useLabels(userId: string | undefined) {
       .single();
 
     if (error) {
+      const message = error.message || 'Failed to create label';
       console.error('Error creating label:', error);
-      throw error;
+      throw new Error(message);
     }
 
     setLabels(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+    // Ensure we sync with DB in case of concurrent changes or triggers
+    await fetchLabels();
     return data;
-  }, [userId, labels]);
+  }, [userId, labels, fetchLabels]);
 
   const deleteLabel = useCallback(async (id: string) => {
     const { error } = await supabase

@@ -64,8 +64,9 @@ export function StockForm({ onSubmit, onCancel, loading, labels, onCreateLabel }
   const sharesNum = parseFloat(shares) || 0;
   const costBasisNum = parseFloat(costBasis) || 0;
   const estimatedValue = currentPrice && sharesNum > 0 ? currentPrice * sharesNum : null;
-  const gainLoss = estimatedValue && costBasisNum > 0 ? estimatedValue - costBasisNum : null;
-  const gainLossPercent = gainLoss && costBasisNum > 0 ? (gainLoss / costBasisNum) * 100 : null;
+  const totalCostBasis = costBasisNum > 0 && sharesNum > 0 ? costBasisNum * sharesNum : null;
+  const gainLoss = estimatedValue && totalCostBasis ? estimatedValue - totalCostBasis : null;
+  const gainLossPercent = gainLoss && totalCostBasis ? (gainLoss / totalCostBasis) * 100 : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,14 +184,14 @@ export function StockForm({ onSubmit, onCancel, loading, labels, onCreateLabel }
         />
 
         <Input
-          label="Cost Basis (Total)"
+          label="Cost Basis (Per Share)"
           type="number"
-          placeholder="e.g., 5000"
+          placeholder="e.g., 50"
           value={costBasis}
           onChange={(e) => setCostBasis(e.target.value)}
           min="0"
           step="0.01"
-          helpText="Total amount paid"
+          helpText="Price paid per share"
         />
       </div>
 

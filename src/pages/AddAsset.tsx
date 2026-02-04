@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Building2, Coins, Wallet } from 'lucide-react';
+import { TrendingUp, Building2, Coins, Wallet, PiggyBank } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StockForm } from '../components/assets/StockForm';
 import { RealEstateForm } from '../components/assets/RealEstateForm';
@@ -14,12 +14,13 @@ interface AddAssetProps {
   onCreateLabel: (name: string) => Promise<Label | null>;
 }
 
-type AssetCategory = 'stock' | 'real_estate' | 'gold' | 'manual';
+type AssetCategory = 'stock' | 'real_estate' | 'gold' | 'tax_advantaged' | 'manual';
 
 const assetCategories = [
   { id: 'stock' as const, label: 'Stocks', icon: TrendingUp, color: '#4fc1ff', description: 'Track shares and market value' },
   { id: 'real_estate' as const, label: 'Real Estate', icon: Building2, color: '#4ec9b0', description: 'Track properties and equity' },
   { id: 'gold' as const, label: 'Gold', icon: Coins, color: '#dcdcaa', description: 'Track precious metals' },
+  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, color: '#22c55e', description: '401(k), Roth IRA, HSA' },
   { id: 'manual' as const, label: 'Other', icon: Wallet, color: '#c586c0', description: 'Cash, crypto, or other assets' },
 ];
 
@@ -83,6 +84,18 @@ export function AddAsset({ onAddAsset, labels, onCreateLabel }: AddAssetProps) {
             onCreateLabel={onCreateLabel}
           />
         );
+      case 'tax_advantaged':
+        return (
+          <ManualAssetForm
+            defaultType="tax_advantaged"
+            lockType
+            onSubmit={(data) => handleSubmit(data)}
+            onCancel={() => setSelectedCategory(null)}
+            loading={loading}
+            labels={labels}
+            onCreateLabel={onCreateLabel}
+          />
+        );
       default:
         return null;
     }
@@ -105,7 +118,7 @@ export function AddAsset({ onAddAsset, labels, onCreateLabel }: AddAssetProps) {
             <h2 className="text-lg font-semibold text-[#e0e0e0] mb-4">
               What type of asset would you like to add?
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {assetCategories.map((category) => (
                 <button
                   key={category.id}

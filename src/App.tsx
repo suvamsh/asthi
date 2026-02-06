@@ -13,6 +13,7 @@ import { AddAsset } from './pages/AddAsset';
 import { AssetDetail } from './pages/AssetDetail';
 import { StockHoldings } from './pages/StockHoldings';
 import { News } from './pages/News';
+import { Insights } from './pages/Insights';
 import { Card } from './components/ui/Card';
 
 function SetupRequired() {
@@ -196,6 +197,16 @@ function AppContent() {
           path="/news"
           element={
             <News assets={assetsWithValues} />
+          }
+        />
+        <Route
+          path="/insights"
+          element={
+            <Insights
+              assetsWithValues={assetsWithValues}
+              breakdown={breakdown}
+              totalNetWorth={totalNetWorth}
+            />
           }
         />
         <Route

@@ -46,7 +46,7 @@ export function useNetWorth(userId: string | undefined, assets: AssetWithLabels[
   const stockTickers = useMemo(() => {
     return [...new Set(
       assets
-        .filter(a => a.type === 'stock' && a.ticker)
+        .filter(a => (a.type === 'stock' || a.type === 'tax_advantaged') && a.ticker && !a.is_account)
         .map(a => a.ticker!)
     )];
   }, [assets]);

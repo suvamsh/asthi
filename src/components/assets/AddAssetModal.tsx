@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Building2, Coins, Wallet, PiggyBank } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { StockForm } from './StockForm';
 import { RealEstateForm } from './RealEstateForm';
 import { GoldForm } from './GoldForm';
 import { ManualAssetForm } from './ManualAssetForm';
-import type { AssetType, Label } from '../../types';
+import { TaxAdvantagedAccountForm } from './TaxAdvantagedAccountForm';
+import type { Asset, AssetType, Label } from '../../types';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -22,9 +24,11 @@ interface AddAssetModalProps {
     current_value?: number;
     weight_oz?: number;
     manual_value?: number;
+    is_account?: boolean;
+    parent_asset_id?: string;
     notes?: string;
     labelIds?: string[];
-  }) => Promise<void>;
+  }) => Promise<Asset | null>;
   labels: Label[];
   onCreateLabel: (name: string) => Promise<Label | null>;
 }
@@ -35,11 +39,12 @@ const assetCategories = [
   { id: 'stock' as const, label: 'Stocks', icon: TrendingUp, description: 'Track shares and market value' },
   { id: 'real_estate' as const, label: 'Real Estate', icon: Building2, description: 'Track properties and equity' },
   { id: 'gold' as const, label: 'Gold', icon: Coins, description: 'Track precious metals' },
-  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, description: '401(k), Roth IRA, HSA' },
+  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, description: '401(k), Roth IRA, HSA accounts' },
   { id: 'manual' as const, label: 'Other', icon: Wallet, description: 'Cash, crypto, or other assets' },
 ];
 
 export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }: AddAssetModalProps) {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,10 +56,51 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
   const handleSubmit = async (data: Parameters<typeof onAdd>[0]) => {
     setLoading(true);
     try {
-      await onAdd(data);
+      const created = await onAdd(data);
       handleClose();
+      if (created?.is_account) {
+        navigate(`/assets/${created.id}`);
+      }
     } catch (error) {
       console.error('Error adding asset:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccountSubmit = async (data: { account: Parameters<typeof onAdd>[0]; positions: Array<{
+    name: string;
+    pricing_mode: 'live' | 'manual';
+    ticker?: string;
+    shares?: number;
+    manual_value?: number;
+    cost_basis?: number;
+    notes?: string;
+  }> }) => {
+    setLoading(true);
+    try {
+      const created = await onAdd(data.account);
+      if (created?.id) {
+        for (const position of data.positions) {
+          await onAdd({
+            name: position.name,
+            type: 'tax_advantaged',
+            account_type: created.account_type,
+            parent_asset_id: created.id,
+            ticker: position.pricing_mode === 'live' ? position.ticker : undefined,
+            shares: position.pricing_mode === 'live' ? position.shares : undefined,
+            manual_value: position.pricing_mode === 'manual' ? position.manual_value : undefined,
+            cost_basis: position.cost_basis,
+            notes: position.notes,
+          });
+        }
+      }
+      handleClose();
+      if (created?.is_account) {
+        navigate(`/assets/${created.id}`);
+      }
+    } catch (error) {
+      console.error('Error adding account:', error);
     } finally {
       setLoading(false);
     }
@@ -104,10 +150,8 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
         );
       case 'tax_advantaged':
         return (
-          <ManualAssetForm
-            defaultType="tax_advantaged"
-            lockType
-            onSubmit={(data) => handleSubmit(data)}
+          <TaxAdvantagedAccountForm
+            onSubmit={(data) => handleAccountSubmit(data)}
             onCancel={() => setSelectedCategory(null)}
             loading={loading}
             labels={labels}

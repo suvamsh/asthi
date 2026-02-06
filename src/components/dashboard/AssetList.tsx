@@ -33,6 +33,9 @@ export function AssetList({ assets, loading }: AssetListProps) {
   const nonStockAssets: AssetWithValue[] = [];
 
   for (const asset of assets) {
+    if (asset.is_account) {
+      continue;
+    }
     if (asset.type === 'stock' && asset.ticker) {
       const key = asset.ticker.toUpperCase();
       const existing = stockHoldingsMap.get(key);

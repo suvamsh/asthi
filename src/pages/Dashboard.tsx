@@ -121,7 +121,7 @@ export function Dashboard({
         onClose={() => setIsAddModalOpen(false)}
         onAdd={async (asset) => {
           const { labelIds, ...assetData } = asset;
-          await onAddAsset(assetData as Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>, labelIds);
+          return await onAddAsset(assetData as Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>, labelIds);
         }}
         labels={labels}
         onCreateLabel={onCreateLabel}

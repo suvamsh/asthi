@@ -5,6 +5,10 @@ export function calculateAssetValue(
   stockPrices: Record<string, number>,
   goldPrice: number | null
 ): number {
+  if (asset.is_account) {
+    return 0;
+  }
+
   switch (asset.type) {
     case 'stock':
       if (asset.ticker && asset.shares) {
@@ -29,9 +33,21 @@ export function calculateAssetValue(
       }
       return asset.manual_value || 0;
 
+    case 'tax_advantaged':
+      if (asset.ticker && asset.shares) {
+        const price = stockPrices[asset.ticker] || 0;
+        if (price > 0) {
+          return price * asset.shares;
+        }
+        if (asset.cost_basis && asset.cost_basis > 0) {
+          return asset.cost_basis * asset.shares;
+        }
+        return 0;
+      }
+      return asset.manual_value || 0;
+
     case 'cash':
     case 'crypto':
-    case 'tax_advantaged':
     case 'other':
     default:
       return asset.manual_value || 0;
@@ -253,7 +269,7 @@ export interface PortfolioPerformance {
 export function getTotalCostBasis(asset: AssetWithValue): number {
   if (!asset.cost_basis || asset.cost_basis <= 0) return 0;
 
-  if (asset.type === 'stock') {
+  if (asset.type === 'stock' || asset.type === 'tax_advantaged') {
     const shares = asset.shares || 0;
     return asset.cost_basis * shares;
   }

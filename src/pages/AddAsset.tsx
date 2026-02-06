@@ -6,6 +6,7 @@ import { StockForm } from '../components/assets/StockForm';
 import { RealEstateForm } from '../components/assets/RealEstateForm';
 import { GoldForm } from '../components/assets/GoldForm';
 import { ManualAssetForm } from '../components/assets/ManualAssetForm';
+import { TaxAdvantagedAccountForm } from '../components/assets/TaxAdvantagedAccountForm';
 import type { Asset, Label } from '../types';
 
 interface AddAssetProps {
@@ -20,7 +21,7 @@ const assetCategories = [
   { id: 'stock' as const, label: 'Stocks', icon: TrendingUp, color: '#4fc1ff', description: 'Track shares and market value' },
   { id: 'real_estate' as const, label: 'Real Estate', icon: Building2, color: '#4ec9b0', description: 'Track properties and equity' },
   { id: 'gold' as const, label: 'Gold', icon: Coins, color: '#dcdcaa', description: 'Track precious metals' },
-  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, color: '#22c55e', description: '401(k), Roth IRA, HSA' },
+  { id: 'tax_advantaged' as const, label: 'Tax Advantaged', icon: PiggyBank, color: '#22c55e', description: '401(k), Roth IRA, HSA accounts' },
   { id: 'manual' as const, label: 'Other', icon: Wallet, color: '#c586c0', description: 'Cash, crypto, or other assets' },
 ];
 
@@ -33,10 +34,57 @@ export function AddAsset({ onAddAsset, labels, onCreateLabel }: AddAssetProps) {
     setLoading(true);
     try {
       const { labelIds, ...assetData } = data;
-      await onAddAsset(assetData, labelIds);
-      navigate('/assets');
+      const created = await onAddAsset(assetData, labelIds);
+      if (created?.is_account) {
+        navigate(`/assets/${created.id}`);
+      } else {
+        navigate('/assets');
+      }
     } catch (error) {
       console.error('Error adding asset:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccountSubmit = async (data: {
+    account: Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'> & { labelIds?: string[] };
+    positions: Array<{
+      name: string;
+      pricing_mode: 'live' | 'manual';
+      ticker?: string;
+      shares?: number;
+      manual_value?: number;
+      cost_basis?: number;
+      notes?: string;
+    }>;
+  }) => {
+    setLoading(true);
+    try {
+      const { labelIds, ...accountData } = data.account;
+      const created = await onAddAsset(accountData, labelIds);
+      if (created?.id) {
+        for (const position of data.positions) {
+          await onAddAsset({
+            name: position.name,
+            type: 'tax_advantaged',
+            account_type: created.account_type,
+            parent_asset_id: created.id,
+            ticker: position.pricing_mode === 'live' ? position.ticker : undefined,
+            shares: position.pricing_mode === 'live' ? position.shares : undefined,
+            manual_value: position.pricing_mode === 'manual' ? position.manual_value : undefined,
+            cost_basis: position.cost_basis,
+            notes: position.notes,
+          });
+        }
+      }
+      if (created?.is_account) {
+        navigate(`/assets/${created.id}`);
+      } else {
+        navigate('/assets');
+      }
+    } catch (error) {
+      console.error('Error adding account:', error);
     } finally {
       setLoading(false);
     }
@@ -86,10 +134,8 @@ export function AddAsset({ onAddAsset, labels, onCreateLabel }: AddAssetProps) {
         );
       case 'tax_advantaged':
         return (
-          <ManualAssetForm
-            defaultType="tax_advantaged"
-            lockType
-            onSubmit={(data) => handleSubmit(data)}
+          <TaxAdvantagedAccountForm
+            onSubmit={(data) => handleAccountSubmit(data)}
             onCancel={() => setSelectedCategory(null)}
             loading={loading}
             labels={labels}

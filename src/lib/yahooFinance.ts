@@ -18,7 +18,9 @@ export async function searchSymbols(keywords: string): Promise<StockSearchResult
     if (data.quotes) {
       return data.quotes
         .filter((quote: Record<string, unknown>) =>
-          quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF'
+          quote.quoteType === 'EQUITY'
+          || quote.quoteType === 'ETF'
+          || quote.quoteType === 'MUTUALFUND'
         )
         .map((quote: Record<string, string>) => ({
           symbol: quote.symbol,

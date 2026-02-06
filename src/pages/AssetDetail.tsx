@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { LabelInput } from '../components/ui/LabelInput';
+import { ManualAssetForm } from '../components/assets/ManualAssetForm';
 import { formatCurrency, getAssetTypeLabel, getTotalCostBasis, getMonthlyMortgageBreakdown, getRealEstateMortgageBalance } from '../lib/calculations';
 import type { Asset, AssetWithValueAndLabels, Label } from '../types';
 
@@ -12,23 +13,28 @@ interface AssetDetailProps {
   assets: AssetWithValueAndLabels[];
   onUpdateAsset: (id: string, updates: Partial<Asset>) => Promise<Asset>;
   onDeleteAsset: (id: string) => Promise<void>;
+  onAddAsset: (asset: Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>, labelIds?: string[]) => Promise<Asset | null>;
   labels: Label[];
   onCreateLabel: (name: string) => Promise<Label | null>;
   onSetAssetLabels: (assetId: string, labelIds: string[]) => Promise<void>;
 }
 
-export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCreateLabel, onSetAssetLabels }: AssetDetailProps) {
+export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, onAddAsset, labels, onCreateLabel, onSetAssetLabels }: AssetDetailProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const asset = assets.find(a => a.id === id);
+  const childPositions = assets.filter(a => a.parent_asset_id === id);
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [addingPosition, setAddingPosition] = useState(false);
+  const [showAddPosition, setShowAddPosition] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
   const [shares, setShares] = useState('');
+  const [tickerInput, setTickerInput] = useState('');
   const [currentValue, setCurrentValue] = useState('');
   const [mortgageAmount, setMortgageAmount] = useState('');
   const [mortgageRate, setMortgageRate] = useState('');
@@ -47,6 +53,7 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
     if (asset) {
       setName(asset.name || '');
       setShares(asset.shares?.toString() || '');
+      setTickerInput(asset.ticker || '');
       setCurrentValue(asset.current_value?.toString() || '');
       setMortgageAmount(asset.mortgage_amount?.toString() || '');
       setMortgageRate(asset.mortgage_rate?.toString() || '');
@@ -73,6 +80,10 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
     );
   }
 
+  const accountTotal = asset.is_account
+    ? childPositions.reduce((sum, position) => sum + position.calculated_value, 0)
+    : asset.calculated_value;
+
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -91,9 +102,16 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
         updates.ownership_percent = Math.max(0, Math.min(100, parseFloat(ownershipPercent) || 0));
       } else if (asset.type === 'gold') {
         updates.weight_oz = parseFloat(weightOz) || undefined;
+      } else if (asset.type === 'tax_advantaged') {
+        updates.account_type = accountType || undefined;
+        if (!asset.is_account) {
+          const nextTicker = tickerInput.trim() || undefined;
+          updates.ticker = nextTicker;
+          updates.shares = nextTicker ? (parseFloat(shares) || undefined) : undefined;
+          updates.manual_value = nextTicker ? undefined : (parseFloat(manualValue) || undefined);
+        }
       } else {
         updates.manual_value = parseFloat(manualValue) || undefined;
-        updates.account_type = asset.type === 'tax_advantaged' ? (accountType || undefined) : undefined;
       }
 
       await onUpdateAsset(asset.id, updates);
@@ -120,6 +138,19 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
     }
   };
 
+  const handleAddPosition = async (data: Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'> & { labelIds?: string[] }) => {
+    setAddingPosition(true);
+    try {
+      const { labelIds, ...assetData } = data;
+      await onAddAsset(assetData, labelIds);
+      setShowAddPosition(false);
+    } catch (error) {
+      console.error('Error adding position:', error);
+    } finally {
+      setAddingPosition(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -139,15 +170,15 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
           <div>
             <p className="text-sm text-[#8a8a8a]">Current Value</p>
             <p className="text-2xl font-bold text-[#4fc1ff]">
-              {formatCurrency(asset.calculated_value)}
+              {formatCurrency(accountTotal)}
             </p>
           </div>
-          {asset.cost_basis && asset.cost_basis > 0 && (
+          {asset.cost_basis && asset.cost_basis > 0 && !asset.is_account && (
             <div className="text-right">
               <p className="text-sm text-[#8a8a8a]">Gain/Loss</p>
               {(() => {
                 const totalCostBasis = getTotalCostBasis(asset);
-                const gainLoss = asset.calculated_value - totalCostBasis;
+                const gainLoss = accountTotal - totalCostBasis;
                 const gainLossPercent = totalCostBasis > 0 ? (gainLoss / totalCostBasis) * 100 : 0;
                 const isPositive = gainLoss >= 0;
                 return (
@@ -296,7 +327,7 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
             />
           )}
 
-          {['cash', 'crypto', 'other', 'tax_advantaged'].includes(asset.type) && (
+          {['cash', 'crypto', 'other'].includes(asset.type) && (
             <Input
               label="Current Value"
               type="number"
@@ -308,12 +339,52 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
           )}
 
           {asset.type === 'tax_advantaged' && (
-            <Input
-              label="Account Type"
-              value={accountType}
-              onChange={(e) => setAccountType(e.target.value)}
-              placeholder="e.g., 401k, Roth IRA"
-            />
+            <>
+              <Input
+                label="Account Type"
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value)}
+                placeholder="e.g., 401k, Roth IRA"
+              />
+              {!asset.is_account && (
+                <>
+                  <Input
+                    label="Ticker (optional)"
+                    value={tickerInput}
+                    onChange={(e) => setTickerInput(e.target.value)}
+                    placeholder="e.g., VTSAX or AAPL"
+                  />
+                  <Input
+                    label="Number of Shares"
+                    type="number"
+                    value={shares}
+                    onChange={(e) => setShares(e.target.value)}
+                    min="0"
+                    step="any"
+                    helpText={tickerInput ? 'Required for live pricing' : 'Leave blank if using manual value'}
+                  />
+                  {!tickerInput && (
+                    <Input
+                      label="Current Value"
+                      type="number"
+                      value={manualValue}
+                      onChange={(e) => setManualValue(e.target.value)}
+                      min="0"
+                      step="0.01"
+                    />
+                  )}
+                  <Input
+                    label="Cost Basis (Per Share)"
+                    type="number"
+                    value={costBasis}
+                    onChange={(e) => setCostBasis(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    helpText="Optional"
+                  />
+                </>
+              )}
+            </>
           )}
 
           {asset.type !== 'cash' && asset.type !== 'real_estate' && asset.type !== 'tax_advantaged' && (
@@ -368,6 +439,65 @@ export function AssetDetail({ assets, onUpdateAsset, onDeleteAsset, labels, onCr
           </div>
         </form>
       </Card>
+
+      {asset.is_account && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-[#e0e0e0]">Positions</h2>
+              <p className="text-xs text-[#8a8a8a]">{childPositions.length} holding{childPositions.length === 1 ? '' : 's'}</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowAddPosition((prev) => !prev)}
+            >
+              {showAddPosition ? 'Close' : 'Add Position'}
+            </Button>
+          </div>
+
+          {showAddPosition && (
+            <div className="mb-6">
+              <ManualAssetForm
+                defaultType="tax_advantaged"
+                lockType
+                parentAssetId={asset.id}
+                defaultAccountType={asset.account_type || '401k'}
+                lockAccountType
+                onSubmit={(data) => handleAddPosition(data)}
+                onCancel={() => setShowAddPosition(false)}
+                loading={addingPosition}
+                labels={labels}
+                onCreateLabel={onCreateLabel}
+              />
+            </div>
+          )}
+
+          {childPositions.length === 0 ? (
+            <p className="text-sm text-[#8a8a8a]">No positions added yet.</p>
+          ) : (
+            <ul className="divide-y divide-[#3c3c3c]">
+              {childPositions.map((position) => (
+                <li key={position.id} className="py-3">
+                  <Link
+                    to={`/assets/${position.id}`}
+                    className="flex items-center justify-between hover:text-[#6dd0ff]"
+                  >
+                    <div>
+                      <p className="font-medium text-[#e0e0e0]">{position.name}</p>
+                      <p className="text-xs text-[#8a8a8a]">
+                        {position.ticker ? position.ticker : 'Manual value'}
+                      </p>
+                    </div>
+                    <p className="text-sm text-[#e0e0e0]">
+                      {formatCurrency(position.calculated_value)}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

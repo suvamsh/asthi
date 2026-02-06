@@ -28,6 +28,8 @@ export interface Asset {
   account_type?: string;
   notes?: string;
   cost_basis?: number;
+  parent_asset_id?: string;
+  is_account?: boolean;
 
   created_at: string;
   updated_at: string;

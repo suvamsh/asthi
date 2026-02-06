@@ -15,7 +15,9 @@ export function StockHoldings({ assets, stockPrices }: StockHoldingsProps) {
   const normalizedTicker = ticker?.toUpperCase() || '';
 
   const holdings = assets.filter(
-    asset => asset.type === 'stock' && asset.ticker?.toUpperCase() === normalizedTicker
+    asset => (asset.type === 'stock' || asset.type === 'tax_advantaged')
+      && !asset.is_account
+      && asset.ticker?.toUpperCase() === normalizedTicker
   );
 
   if (!normalizedTicker || holdings.length === 0) {

@@ -221,6 +221,7 @@ function AppContent() {
               assets={assetsWithValues}
               onUpdateAsset={updateAsset}
               onDeleteAsset={deleteAsset}
+              onAddAsset={addAsset}
               labels={labels}
               onCreateLabel={createLabel}
               onSetAssetLabels={handleSetAssetLabels}

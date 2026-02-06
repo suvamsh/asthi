@@ -158,6 +158,21 @@ export function Assets({ assets, loading, onAddAsset, onDeleteAsset, labels, onC
             const typeAssets = sortAssets(groupedAssets[type], type);
             const typeTotal = typeAssets.reduce((sum, asset) => sum + asset.calculated_value, 0);
             const { sortBy, sortDir } = sortState[type] || { sortBy: 'created_at', sortDir: 'desc' };
+            const isTaxAdvantaged = type === 'tax_advantaged';
+            const taxAccounts = isTaxAdvantaged ? typeAssets.filter(asset => asset.is_account) : [];
+            const taxPositions = isTaxAdvantaged ? typeAssets.filter(asset => !asset.is_account) : [];
+            const positionsByAccount = isTaxAdvantaged
+              ? taxPositions.reduce((acc, asset) => {
+                  const parentId = asset.parent_asset_id;
+                  if (!parentId) return acc;
+                  if (!acc[parentId]) acc[parentId] = [];
+                  acc[parentId].push(asset);
+                  return acc;
+                }, {} as Record<string, AssetWithValueAndLabels[]>)
+              : {};
+            const unassignedPositions = isTaxAdvantaged
+              ? taxPositions.filter(asset => !asset.parent_asset_id)
+              : [];
             return (
               <Card key={type} padding="none">
                 <div className="px-6 py-4 border-b border-[#3c3c3c] flex items-center justify-between">
@@ -225,70 +240,236 @@ export function Assets({ assets, loading, onAddAsset, onDeleteAsset, labels, onC
                         <span className="text-right">Actions</span>
                       </div>
                     </div>
-                    <ul className="divide-y divide-[#3c3c3c]">
-                      {typeAssets.map((asset) => (
-                        <li
-                          key={asset.id}
-                          className="px-6 py-4 hover:bg-[#2a2d2e]"
-                        >
-                          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_96px] gap-3 items-center">
-                            <div className="min-w-0">
-                              <p className="font-medium text-[#e0e0e0] truncate">{asset.name}</p>
-                              <div className="flex items-center gap-2 flex-wrap mt-1">
-                                {asset.labels && asset.labels.length > 0 && asset.labels.map(label => (
-                                  <LabelChip key={label.id} label={label} size="sm" />
-                                ))}
-                                {asset.type === 'tax_advantaged' && asset.account_type && (
-                                  <span className="text-xs text-[#8a8a8a]">{asset.account_type}</span>
+                    {isTaxAdvantaged ? (
+                      <ul className="divide-y divide-[#3c3c3c]">
+                        {taxAccounts.map((account) => {
+                          const accountPositions = positionsByAccount[account.id] || [];
+                          const accountTotal = accountPositions.reduce((sum, asset) => sum + asset.calculated_value, 0);
+                          const sortedPositions = sortAssets(accountPositions, type);
+                          return (
+                            <li key={account.id} className="px-6 py-4">
+                              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_96px] gap-3 items-center">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-[#e0e0e0] truncate">{account.name}</p>
+                                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                                    {account.labels && account.labels.length > 0 && account.labels.map(label => (
+                                      <LabelChip key={label.id} label={label} size="sm" />
+                                    ))}
+                                    {account.account_type && (
+                                      <span className="text-xs text-[#8a8a8a]">{account.account_type}</span>
+                                    )}
+                                    <span className="text-xs text-[#8a8a8a]">
+                                      {accountPositions.length} position{accountPositions.length === 1 ? '' : 's'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-sm text-[#8a8a8a]">Account</div>
+                                <div className="text-sm text-[#e0e0e0]">
+                                  {formatCurrency(accountTotal)}
+                                </div>
+                                <div className="text-sm text-[#8a8a8a]">—</div>
+                                <div className="text-sm text-[#8a8a8a]">
+                                  {account.created_at ? new Date(account.created_at).toLocaleDateString('en-US') : '—'}
+                                </div>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Link to={`/assets/${account.id}`}>
+                                    <Button variant="ghost" size="sm" className="p-2">
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                  </Link>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-2 text-[#f14c4c] hover:bg-[#f14c4c]/10"
+                                    onClick={() => handleDelete(account.id)}
+                                    disabled={deletingId === account.id}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {sortedPositions.length > 0 && (
+                                <ul className="mt-3 border-t border-[#3c3c3c]">
+                                  {sortedPositions.map((position) => (
+                                    <li key={position.id} className="py-3">
+                                      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_96px] gap-3 items-center">
+                                        <div className="min-w-0 pl-4">
+                                          <p className="text-sm text-[#e0e0e0] truncate">{position.name}</p>
+                                        </div>
+                                        <div className="text-sm text-[#8a8a8a]">
+                                          {position.ticker ? (
+                                            <Link
+                                              to={`/holdings/${encodeURIComponent(position.ticker)}`}
+                                              className="text-[#4fc1ff] hover:text-[#6dd0ff]"
+                                            >
+                                              {position.ticker}
+                                            </Link>
+                                          ) : (
+                                            '—'
+                                          )}
+                                        </div>
+                                        <div className="text-sm text-[#e0e0e0]">
+                                          {formatCurrency(position.calculated_value)}
+                                        </div>
+                                        <div className="text-sm text-[#8a8a8a]">
+                                          {position.shares ? position.shares.toFixed(4) : '—'}
+                                        </div>
+                                        <div className="text-sm text-[#8a8a8a]">
+                                          {position.created_at ? new Date(position.created_at).toLocaleDateString('en-US') : '—'}
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1">
+                                          <Link to={`/assets/${position.id}`}>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                              <Edit2 className="w-4 h-4" />
+                                            </Button>
+                                          </Link>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="p-2 text-[#f14c4c] hover:bg-[#f14c4c]/10"
+                                            onClick={() => handleDelete(position.id)}
+                                            disabled={deletingId === position.id}
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                        {unassignedPositions.length > 0 && (
+                          <li className="px-6 py-4 bg-[#1f1f1f]/50 text-xs uppercase tracking-wide text-[#8a8a8a]">
+                            Unassigned Positions
+                          </li>
+                        )}
+                        {unassignedPositions.map((asset) => (
+                          <li
+                            key={asset.id}
+                            className="px-6 py-4 hover:bg-[#2a2d2e]"
+                          >
+                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_96px] gap-3 items-center">
+                              <div className="min-w-0">
+                                <p className="font-medium text-[#e0e0e0] truncate">{asset.name}</p>
+                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                  {asset.labels && asset.labels.length > 0 && asset.labels.map(label => (
+                                    <LabelChip key={label.id} label={label} size="sm" />
+                                  ))}
+                                  {asset.account_type && (
+                                    <span className="text-xs text-[#8a8a8a]">{asset.account_type}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.ticker ? (
+                                  <Link
+                                    to={`/holdings/${encodeURIComponent(asset.ticker)}`}
+                                    className="text-[#4fc1ff] hover:text-[#6dd0ff]"
+                                  >
+                                    {asset.ticker}
+                                  </Link>
+                                ) : (
+                                  '—'
                                 )}
                               </div>
-                            </div>
-                            <div className="text-sm text-[#8a8a8a]">
-                              {asset.ticker ? (
-                                <Link
-                                  to={`/holdings/${encodeURIComponent(asset.ticker)}`}
-                                  className="text-[#4fc1ff] hover:text-[#6dd0ff]"
-                                >
-                                  {asset.ticker}
+                              <div className="text-sm text-[#e0e0e0]">
+                                {formatCurrency(asset.calculated_value)}
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.shares ? asset.shares.toFixed(4) : '—'}
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.created_at ? new Date(asset.created_at).toLocaleDateString('en-US') : '—'}
+                              </div>
+                              <div className="flex items-center justify-end gap-1">
+                                <Link to={`/assets/${asset.id}`}>
+                                  <Button variant="ghost" size="sm" className="p-2">
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
                                 </Link>
-                              ) : (
-                                '—'
-                              )}
-                            </div>
-                            <div className="text-sm text-[#e0e0e0]">
-                              {formatCurrency(asset.calculated_value)}
-                            </div>
-                            <div className="text-sm text-[#8a8a8a]">
-                              {asset.shares ? asset.shares.toFixed(4) : '—'}
-                            </div>
-                            <div className="text-sm text-[#8a8a8a]">
-                              {asset.created_at ? new Date(asset.created_at).toLocaleDateString('en-US') : '—'}
-                            </div>
-                            <div className="flex items-center justify-end gap-1">
-                              <Link to={`/assets/${asset.id}`}>
-                                <Button variant="ghost" size="sm" className="p-2">
-                                  <Edit2 className="w-4 h-4" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="p-2 text-[#f14c4c] hover:bg-[#f14c4c]/10"
+                                  onClick={() => handleDelete(asset.id)}
+                                  disabled={deletingId === asset.id}
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-2 text-[#f14c4c] hover:bg-[#f14c4c]/10"
-                                onClick={() => handleDelete(asset.id)}
-                                disabled={deletingId === asset.id}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              </div>
                             </div>
-                          </div>
-                          {asset.cost_basis && asset.cost_basis > 0 && asset.type === 'stock' && asset.shares ? (
-                            <p className="text-xs text-[#8a8a8a] mt-2">
-                              Cost/Share: {formatCurrencyDetailed(asset.cost_basis)}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <ul className="divide-y divide-[#3c3c3c]">
+                        {typeAssets.map((asset) => (
+                          <li
+                            key={asset.id}
+                            className="px-6 py-4 hover:bg-[#2a2d2e]"
+                          >
+                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_96px] gap-3 items-center">
+                              <div className="min-w-0">
+                                <p className="font-medium text-[#e0e0e0] truncate">{asset.name}</p>
+                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                  {asset.labels && asset.labels.length > 0 && asset.labels.map(label => (
+                                    <LabelChip key={label.id} label={label} size="sm" />
+                                  ))}
+                                  {asset.type === 'tax_advantaged' && asset.account_type && (
+                                    <span className="text-xs text-[#8a8a8a]">{asset.account_type}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.ticker ? (
+                                  <Link
+                                    to={`/holdings/${encodeURIComponent(asset.ticker)}`}
+                                    className="text-[#4fc1ff] hover:text-[#6dd0ff]"
+                                  >
+                                    {asset.ticker}
+                                  </Link>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                              <div className="text-sm text-[#e0e0e0]">
+                                {formatCurrency(asset.calculated_value)}
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.shares ? asset.shares.toFixed(4) : '—'}
+                              </div>
+                              <div className="text-sm text-[#8a8a8a]">
+                                {asset.created_at ? new Date(asset.created_at).toLocaleDateString('en-US') : '—'}
+                              </div>
+                              <div className="flex items-center justify-end gap-1">
+                                <Link to={`/assets/${asset.id}`}>
+                                  <Button variant="ghost" size="sm" className="p-2">
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="p-2 text-[#f14c4c] hover:bg-[#f14c4c]/10"
+                                  onClick={() => handleDelete(asset.id)}
+                                  disabled={deletingId === asset.id}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            {asset.cost_basis && asset.cost_basis > 0 && asset.type === 'stock' && asset.shares ? (
+                              <p className="text-xs text-[#8a8a8a] mt-2">
+                                Cost/Share: {formatCurrencyDetailed(asset.cost_basis)}
+                              </p>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </>
                 )}
               </Card>
@@ -302,7 +483,7 @@ export function Assets({ assets, loading, onAddAsset, onDeleteAsset, labels, onC
         onClose={() => setIsAddModalOpen(false)}
         onAdd={async (asset) => {
           const { labelIds, ...assetData } = asset;
-          await onAddAsset(assetData as Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>, labelIds);
+          return await onAddAsset(assetData as Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>, labelIds);
         }}
         labels={labels}
         onCreateLabel={onCreateLabel}

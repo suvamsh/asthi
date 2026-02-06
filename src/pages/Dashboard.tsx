@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { NetWorthCard } from '../components/dashboard/NetWorthCard';
-import { PerformanceCard } from '../components/dashboard/PerformanceCard';
-import { AllocationChart } from '../components/dashboard/AllocationChart';
 import { TrendChart } from '../components/dashboard/TrendChart';
-import { AssetList } from '../components/dashboard/AssetList';
+import { CustomAllocationChart } from '../components/dashboard/CustomAllocationChart';
+import { DashboardInsightsCard } from '../components/dashboard/DashboardInsightsCard';
+import { DashboardNewsCard } from '../components/dashboard/DashboardNewsCard';
 import { LabelFilter } from '../components/dashboard/LabelFilter';
 import { AddAssetModal } from '../components/assets/AddAssetModal';
 import { Button } from '../components/ui/Button';
-import { filterAssetsByLabels, calculateAssetsByType, calculatePortfolioPerformance } from '../lib/calculations';
+import { useNews } from '../hooks/useNews';
+import { useInsights } from '../hooks/useInsights';
+import { filterAssetsByLabels, calculateAssetsByType } from '../lib/calculations';
 import type { Asset, AssetType, NetWorthHistory, AssetWithValueAndLabels, Label } from '../types';
 
 interface DashboardProps {
@@ -36,7 +38,6 @@ export function Dashboard({
   assetsWithValues,
   history,
   loadingPrices,
-  loadingAssets,
   getHistoryForRange,
   onAddAsset,
   labels,
@@ -46,6 +47,10 @@ export function Dashboard({
 }: DashboardProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+
+  // News & insights hooks
+  const { portfolioNews, loading: newsLoading } = useNews(assetsWithValues);
+  const { insights } = useInsights(assetsWithValues, breakdown, totalNetWorth, portfolioNews);
 
   // Filter assets by selected labels
   const filteredAssets = useMemo(() => {
@@ -68,11 +73,6 @@ export function Dashboard({
     return filteredAssets.reduce((sum, asset) => sum + asset.calculated_value, 0);
   }, [filteredAssets, selectedLabelIds, totalNetWorth]);
 
-  // Calculate portfolio performance
-  const performance = useMemo(() => {
-    return calculatePortfolioPerformance(filteredAssets);
-  }, [filteredAssets]);
-
   const isFiltered = selectedLabelIds.length > 0;
 
   return (
@@ -92,29 +92,26 @@ export function Dashboard({
         </div>
       </div>
 
+      {/* Net Worth — full width hero */}
+      <NetWorthCard
+        totalNetWorth={isFiltered ? filteredTotal : totalNetWorth}
+        change={isFiltered ? null : netWorthChange}
+        changePercent={isFiltered ? null : netWorthChangePercent}
+        loading={loadingPrices}
+        isFiltered={isFiltered}
+      />
+
+      {/* Insights + News — 2-col grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NetWorthCard
-          totalNetWorth={isFiltered ? filteredTotal : totalNetWorth}
-          change={isFiltered ? null : netWorthChange}
-          changePercent={isFiltered ? null : netWorthChangePercent}
-          loading={loadingPrices}
-          isFiltered={isFiltered}
-        />
-        <PerformanceCard
-          totalCostBasis={performance.totalCostBasis}
-          totalCurrentValue={performance.totalCurrentValue}
-          gainLoss={performance.gainLoss}
-          gainLossPercent={performance.gainLossPercent}
-          loading={loadingPrices}
-        />
+        <DashboardInsightsCard insights={insights} loading={newsLoading} />
+        <DashboardNewsCard articles={portfolioNews} loading={newsLoading} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AllocationChart breakdown={filteredBreakdown} />
-        <TrendChart history={history} getHistoryForRange={getHistoryForRange} />
-      </div>
+      {/* Net Worth Trend — full width */}
+      <TrendChart history={history} getHistoryForRange={getHistoryForRange} />
 
-      <AssetList assets={filteredAssets} loading={loadingAssets} />
+      {/* Asset Allocation — full width with view toggle */}
+      <CustomAllocationChart breakdown={filteredBreakdown} assets={filteredAssets} />
 
       <AddAssetModal
         isOpen={isAddModalOpen}

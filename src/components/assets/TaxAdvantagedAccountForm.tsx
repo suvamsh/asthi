@@ -3,6 +3,8 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { LabelInput } from '../ui/LabelInput';
+import { TaxPositionEditor } from './TaxPositionEditor';
+import type { TaxAdvantagedPositionDraft } from './TaxPositionEditor';
 import type { AssetType, Label } from '../../types';
 
 interface TaxAdvantagedAccountFormData {
@@ -14,22 +16,24 @@ interface TaxAdvantagedAccountFormData {
   labelIds?: string[];
 }
 
-interface TaxAdvantagedPositionDraft {
-  name: string;
-  pricing_mode: 'live' | 'manual';
-  ticker?: string;
-  shares?: number;
-  manual_value?: number;
-  cost_basis?: number;
-  notes?: string;
-}
-
 interface TaxAdvantagedAccountFormProps {
   onSubmit: (data: { account: TaxAdvantagedAccountFormData; positions: TaxAdvantagedPositionDraft[] }) => void;
   onCancel: () => void;
   loading?: boolean;
   labels: Label[];
   onCreateLabel: (name: string) => Promise<Label | null>;
+}
+
+function createPositionDraft(): TaxAdvantagedPositionDraft {
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    pricing_mode: 'live',
+    ticker: '',
+    shares: undefined,
+    manual_value: undefined,
+    cost_basis: undefined,
+  };
 }
 
 export function TaxAdvantagedAccountForm({
@@ -43,9 +47,7 @@ export function TaxAdvantagedAccountForm({
   const [accountType, setAccountType] = useState('401k');
   const [notes, setNotes] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
-  const [positions, setPositions] = useState<TaxAdvantagedPositionDraft[]>([
-    { name: '', pricing_mode: 'live', ticker: '', shares: undefined, manual_value: undefined, cost_basis: undefined },
-  ]);
+  const [positions, setPositions] = useState<TaxAdvantagedPositionDraft[]>([createPositionDraft()]);
 
   const isValid = name.trim().length > 0;
 
@@ -56,10 +58,7 @@ export function TaxAdvantagedAccountForm({
   };
 
   const addPosition = () => {
-    setPositions((prev) => [
-      ...prev,
-      { name: '', pricing_mode: 'live', ticker: '', shares: undefined, manual_value: undefined, cost_basis: undefined },
-    ]);
+    setPositions((prev) => [...prev, createPositionDraft()]);
   };
 
   const removePosition = (index: number) => {
@@ -74,6 +73,7 @@ export function TaxAdvantagedAccountForm({
       .map((position) => {
         const pricingMode = position.pricing_mode;
         return {
+          id: position.id,
           name: position.name.trim(),
           pricing_mode: pricingMode,
           ticker: pricingMode === 'live' ? (position.ticker || '').trim() : undefined,
@@ -143,73 +143,14 @@ export function TaxAdvantagedAccountForm({
           <p className="text-xs text-[#8a8a8a]">{positionHelper}</p>
         </div>
         {positions.map((position, index) => (
-          <div key={index} className="border border-[#3c3c3c] rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-[#8a8a8a]">Position {index + 1}</p>
-              {positions.length > 1 && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => removePosition(index)}>
-                  Remove
-                </Button>
-              )}
-            </div>
-
-            <Input
-              label="Holding Name"
-              placeholder="e.g., PIMCO Total Return"
-              value={position.name}
-              onChange={(e) => updatePosition(index, { name: e.target.value })}
-            />
-
-            <Select
-              label="Pricing"
-              value={position.pricing_mode}
-              onChange={(e) => updatePosition(index, { pricing_mode: e.target.value as 'live' | 'manual' })}
-              options={[
-                { value: 'live', label: 'Live price (ticker)' },
-                { value: 'manual', label: 'Manual value' },
-              ]}
-            />
-
-            {position.pricing_mode === 'live' ? (
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Ticker"
-                  placeholder="e.g., VTSAX or AAPL"
-                  value={position.ticker || ''}
-                  onChange={(e) => updatePosition(index, { ticker: e.target.value })}
-                />
-                <Input
-                  label="Shares"
-                  type="number"
-                  placeholder="e.g., 25"
-                  value={position.shares?.toString() || ''}
-                  onChange={(e) => updatePosition(index, { shares: parseFloat(e.target.value) || undefined })}
-                  min="0"
-                  step="any"
-                />
-              </div>
-            ) : (
-              <Input
-                label="Current Value"
-                type="number"
-                placeholder="10000"
-                value={position.manual_value?.toString() || ''}
-                onChange={(e) => updatePosition(index, { manual_value: parseFloat(e.target.value) || undefined })}
-                min="0"
-                step="0.01"
-              />
-            )}
-
-            <Input
-              label={position.pricing_mode === 'live' ? 'Cost Basis (Per Share)' : 'Cost Basis (Total)'}
-              type="number"
-              placeholder="Optional"
-              value={position.cost_basis?.toString() || ''}
-              onChange={(e) => updatePosition(index, { cost_basis: parseFloat(e.target.value) || undefined })}
-              min="0"
-              step="0.01"
-            />
-          </div>
+          <TaxPositionEditor
+            key={position.id}
+            index={index}
+            position={position}
+            onChange={(updates) => updatePosition(index, updates)}
+            onRemove={() => removePosition(index)}
+            showRemove={positions.length > 1}
+          />
         ))}
         <Button type="button" variant="outline" onClick={addPosition}>
           Add Another Position

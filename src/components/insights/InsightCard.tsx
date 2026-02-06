@@ -4,7 +4,7 @@ import type { Insight, InsightCategory, InsightSeverity } from '../../lib/insigh
 
 interface InsightCardProps {
   insight: Insight;
-  onDismiss: (id: string) => void;
+  onDismiss?: (id: string) => void;
 }
 
 const severityColors: Record<InsightSeverity, string> = {
@@ -43,13 +43,15 @@ export function InsightCard({ insight, onDismiss }: InsightCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <h4 className="text-sm font-medium text-[#e0e0e0]">{insight.title}</h4>
-              <button
-                onClick={() => onDismiss(insight.id)}
-                className="p-1 text-[#6e6e6e] hover:text-[#cccccc] transition-colors flex-shrink-0"
-                title="Dismiss"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              {onDismiss && (
+                <button
+                  onClick={() => onDismiss(insight.id)}
+                  className="p-1 text-[#6e6e6e] hover:text-[#cccccc] transition-colors flex-shrink-0"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             <p className="text-xs text-[#8a8a8a] mt-1">{insight.description}</p>

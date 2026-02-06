@@ -12,6 +12,7 @@ import { Assets } from './pages/Assets';
 import { AddAsset } from './pages/AddAsset';
 import { AssetDetail } from './pages/AssetDetail';
 import { StockHoldings } from './pages/StockHoldings';
+import { News } from './pages/News';
 import { Card } from './components/ui/Card';
 
 function SetupRequired() {
@@ -189,6 +190,12 @@ function AppContent() {
               stockPrices={stockPrices}
               goldPrice={goldPrice}
             />
+          }
+        />
+        <Route
+          path="/news"
+          element={
+            <News assets={assetsWithValues} />
           }
         />
         <Route

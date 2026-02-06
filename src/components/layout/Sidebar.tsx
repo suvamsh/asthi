@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Wallet, Plus, X } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Wallet, Plus, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface SidebarProps {
@@ -9,6 +9,7 @@ interface SidebarProps {
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/news', icon: Newspaper, label: 'News' },
   { to: '/assets', icon: Wallet, label: 'Assets' },
   { to: '/assets/add', icon: Plus, label: 'Add Asset' },
 ];

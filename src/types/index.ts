@@ -82,3 +82,20 @@ export interface AssetWithLabels extends Asset {
 export interface AssetWithValueAndLabels extends AssetWithValue {
   labels?: Label[];
 }
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  relatedTickers?: string[];
+}
+
+export interface NewsSector {
+  name: string;
+  searchTerms: string[];
+  weight: number;
+  assetCount: number;
+}

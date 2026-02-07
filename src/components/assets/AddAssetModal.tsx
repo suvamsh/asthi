@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Building2, Coins, Wallet, PiggyBank } from 'lucide-react';
 import { Modal } from '../ui/Modal';
@@ -47,11 +47,17 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory | null>(null);
   const [loading, setLoading] = useState(false);
+  const [wizardTitle, setWizardTitle] = useState<string | null>(null);
 
   const handleClose = () => {
     setSelectedCategory(null);
+    setWizardTitle(null);
     onClose();
   };
+
+  const handleStepChange = useCallback((_step: number, title: string) => {
+    setWizardTitle(title);
+  }, []);
 
   const handleSubmit = async (data: Parameters<typeof onAdd>[0]) => {
     setLoading(true);
@@ -152,7 +158,8 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
         return (
           <TaxAdvantagedAccountForm
             onSubmit={(data) => handleAccountSubmit(data)}
-            onCancel={() => setSelectedCategory(null)}
+            onCancel={() => { setSelectedCategory(null); setWizardTitle(null); }}
+            onStepChange={handleStepChange}
             loading={loading}
             labels={labels}
             onCreateLabel={onCreateLabel}
@@ -167,8 +174,14 @@ export function AddAssetModal({ isOpen, onClose, onAdd, labels, onCreateLabel }:
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={selectedCategory ? `Add ${assetCategories.find(c => c.id === selectedCategory)?.label}` : 'Add Asset'}
-      size="md"
+      title={
+        selectedCategory === 'tax_advantaged' && wizardTitle
+          ? wizardTitle
+          : selectedCategory
+            ? `Add ${assetCategories.find(c => c.id === selectedCategory)?.label}`
+            : 'Add Asset'
+      }
+      size={selectedCategory === 'tax_advantaged' ? 'lg' : 'md'}
     >
       {selectedCategory ? (
         renderForm()

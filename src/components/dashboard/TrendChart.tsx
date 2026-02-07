@@ -16,6 +16,7 @@ import type { NetWorthHistory } from '../../types';
 interface TrendChartProps {
   history: NetWorthHistory[];
   getHistoryForRange: (days: number) => NetWorthHistory[];
+  loading?: boolean;
 }
 
 const timeRanges = [
@@ -26,7 +27,7 @@ const timeRanges = [
   { label: 'ALL', days: 0 },
 ];
 
-export function TrendChart({ getHistoryForRange }: TrendChartProps) {
+export function TrendChart({ getHistoryForRange, loading }: TrendChartProps) {
   const [selectedRange, setSelectedRange] = useState(30);
 
   const data = getHistoryForRange(selectedRange).map((item) => ({
@@ -38,10 +39,10 @@ export function TrendChart({ getHistoryForRange }: TrendChartProps) {
   }));
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle>Net Worth Trend</CardTitle>
+    <Card padding="sm" className="h-full flex flex-col">
+      <CardHeader className="mb-2">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm">Trend</CardTitle>
           <div className="flex gap-1">
             {timeRanges.map((range) => (
               <Button
@@ -57,8 +58,10 @@ export function TrendChart({ getHistoryForRange }: TrendChartProps) {
         </div>
       </CardHeader>
 
-      <div className="h-64">
-        {data.length === 0 ? (
+      <div className="flex-1 min-h-0">
+        {loading ? (
+          <div className="h-full bg-[#3c3c3c]/30 rounded animate-pulse" />
+        ) : data.length === 0 ? (
           <div className="h-full flex items-center justify-center text-[#8a8a8a]">
             No history data yet. Check back after a few days.
           </div>

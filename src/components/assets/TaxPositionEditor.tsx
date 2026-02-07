@@ -33,6 +33,7 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
   const [showResults, setShowResults] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
+  const [showCustomName, setShowCustomName] = useState(false);
 
   const { results, loading: searching, search, clearResults } = useStockSearch();
 
@@ -49,6 +50,7 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
     setSelectedStock(stock);
     setSearchQuery(stock.symbol);
     setShowResults(false);
+    setShowCustomName(false);
     clearResults();
     onChange({ name: stock.name, ticker: stock.symbol });
 
@@ -70,6 +72,7 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
       setSearchQuery('');
       setSelectedStock(null);
       setShowResults(false);
+      setShowCustomName(false);
       setCurrentPrice(null);
       setLoadingPrice(false);
       clearResults();
@@ -90,13 +93,6 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
           </Button>
         )}
       </div>
-
-      <Input
-        label="Holding Name"
-        placeholder="e.g., PIMCO Total Return"
-        value={position.name}
-        onChange={(e) => onChange({ name: e.target.value })}
-      />
 
       <Select
         label="Pricing"
@@ -174,6 +170,23 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
                   Est. value: {formatCurrency(estimatedValue)}
                 </p>
               )}
+              {showCustomName ? (
+                <div className="mt-2">
+                  <Input
+                    placeholder="e.g., Fidelity Managed Income Portfolio"
+                    value={position.name !== selectedStock.name ? position.name : ''}
+                    onChange={(e) => onChange({ name: e.target.value || selectedStock.name })}
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-[#8a8a8a] hover:text-[#cccccc] transition-colors"
+                  onClick={() => setShowCustomName(true)}
+                >
+                  Using as proxy? Rename this holding
+                </button>
+              )}
             </div>
           )}
 
@@ -200,6 +213,12 @@ export function TaxPositionEditor({ index, position, onChange, onRemove, showRem
         </div>
       ) : (
         <>
+          <Input
+            label="Holding Name"
+            placeholder="e.g., PIMCO Total Return"
+            value={position.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+          />
           <Input
             label="Current Value"
             type="number"

@@ -7,6 +7,7 @@ import type { AssetType, AssetWithValueAndLabels } from '../../types';
 interface CustomAllocationChartProps {
   breakdown: Record<AssetType, number>;
   assets: AssetWithValueAndLabels[];
+  loading?: boolean;
 }
 
 type ViewMode = 'type' | 'holding';
@@ -74,19 +75,30 @@ function buildHoldingData(assets: AssetWithValueAndLabels[]): ChartDataItem[] {
   return data;
 }
 
-export function CustomAllocationChart({ breakdown, assets }: CustomAllocationChartProps) {
+export function CustomAllocationChart({ breakdown, assets, loading }: CustomAllocationChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('type');
 
   const data = viewMode === 'type' ? buildTypeData(breakdown) : buildHoldingData(assets);
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  if (loading) {
+    return (
+      <Card padding="sm" className="h-full flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between mb-2">
+          <CardTitle className="text-sm">Allocation</CardTitle>
+        </CardHeader>
+        <div className="flex-1 min-h-0 bg-[#3c3c3c]/30 rounded animate-pulse" />
+      </Card>
+    );
+  }
+
   if (data.length === 0) {
     return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Asset Allocation</CardTitle>
+      <Card padding="sm" className="h-full flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between mb-2">
+          <CardTitle className="text-sm">Allocation</CardTitle>
         </CardHeader>
-        <div className="h-64 flex items-center justify-center text-[#8a8a8a]">
+        <div className="flex-1 min-h-0 flex items-center justify-center text-[#8a8a8a]">
           No assets to display
         </div>
       </Card>
@@ -94,9 +106,9 @@ export function CustomAllocationChart({ breakdown, assets }: CustomAllocationCha
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Asset Allocation</CardTitle>
+    <Card padding="sm" className="h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between mb-2">
+        <CardTitle className="text-sm">Allocation</CardTitle>
         <select
           value={viewMode}
           onChange={(e) => setViewMode(e.target.value as ViewMode)}
@@ -106,15 +118,15 @@ export function CustomAllocationChart({ breakdown, assets }: CustomAllocationCha
           <option value="holding">By Holding</option>
         </select>
       </CardHeader>
-      <div className="h-72">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={80}
+              innerRadius={45}
+              outerRadius={65}
               paddingAngle={2}
               dataKey="value"
               stroke="#1e1e1e"
@@ -136,10 +148,11 @@ export function CustomAllocationChart({ breakdown, assets }: CustomAllocationCha
               labelStyle={{ color: '#cccccc' }}
             />
             <Legend
+              iconSize={8}
               formatter={(value) => {
                 const item = data.find(d => d.name === value);
                 const percent = item ? ((item.value / total) * 100).toFixed(1) : '0';
-                return <span style={{ color: '#cccccc' }}>{value} ({percent}%)</span>;
+                return <span style={{ color: '#cccccc', fontSize: '11px' }}>{value} ({percent}%)</span>;
               }}
             />
           </PieChart>

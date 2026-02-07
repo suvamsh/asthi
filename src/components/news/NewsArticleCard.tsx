@@ -5,11 +5,12 @@ import type { NewsArticle } from '../../types';
 
 interface NewsArticleCardProps {
   article: NewsArticle;
+  compact?: boolean;
 }
 
-export function NewsArticleCard({ article }: NewsArticleCardProps) {
+export function NewsArticleCard({ article, compact }: NewsArticleCardProps) {
   return (
-    <div className="p-4 bg-[#252526] border border-[#3c3c3c] rounded-lg hover:border-[#4a4a4a] transition-colors">
+    <div className={`${compact ? 'p-2.5' : 'p-4'} bg-[#252526] border border-[#3c3c3c] rounded-lg hover:border-[#4a4a4a] transition-colors`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <a
@@ -24,13 +25,13 @@ export function NewsArticleCard({ article }: NewsArticleCardProps) {
             <ExternalLink className="w-3.5 h-3.5 text-[#8a8a8a] flex-shrink-0 mt-0.5 group-hover:text-[#4fc1ff]" />
           </a>
 
-          {article.description && (
+          {!compact && article.description && (
             <p className="mt-1 text-xs text-[#8a8a8a] line-clamp-2">
               {article.description}
             </p>
           )}
 
-          <div className="mt-2 flex items-center gap-3">
+          <div className={`${compact ? 'mt-1' : 'mt-2'} flex items-center gap-3`}>
             <span className="text-xs text-[#6e6e6e]">
               {article.source}
             </span>

@@ -5,6 +5,7 @@ import type { Insight, InsightCategory, InsightSeverity } from '../../lib/insigh
 interface InsightCardProps {
   insight: Insight;
   onDismiss?: (id: string) => void;
+  compact?: boolean;
 }
 
 const severityColors: Record<InsightSeverity, string> = {
@@ -27,7 +28,7 @@ const categoryIcons: Record<InsightCategory, typeof AlertTriangle> = {
   news_impact: Newspaper,
 };
 
-export function InsightCard({ insight, onDismiss }: InsightCardProps) {
+export function InsightCard({ insight, onDismiss, compact }: InsightCardProps) {
   const color = severityColors[insight.severity];
   const Icon = categoryIcons[insight.category] || Info;
 
@@ -36,7 +37,7 @@ export function InsightCard({ insight, onDismiss }: InsightCardProps) {
       {/* Color stripe */}
       <div className="w-1 flex-shrink-0" style={{ backgroundColor: color }} />
 
-      <div className="flex-1 p-3 sm:p-4">
+      <div className={compact ? "flex-1 p-2" : "flex-1 p-3 sm:p-4"}>
         <div className="flex items-start gap-3">
           <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color }} />
 
@@ -57,25 +58,27 @@ export function InsightCard({ insight, onDismiss }: InsightCardProps) {
             <p className="text-xs text-[#8a8a8a] mt-1">{insight.description}</p>
 
             {/* Metric + Ticker chips */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {insight.metric && (
-                <span
-                  className="text-xs font-mono px-1.5 py-0.5 rounded"
-                  style={{ color, backgroundColor: `${color}15` }}
-                >
-                  {insight.metric}
-                </span>
-              )}
-              {insight.tickers?.map(ticker => (
-                <Link
-                  key={ticker}
-                  to={`/holdings/${ticker}`}
-                  className="text-xs px-1.5 py-0.5 rounded bg-[#37373d] text-[#4fc1ff] hover:bg-[#45454a] transition-colors"
-                >
-                  {ticker}
-                </Link>
-              ))}
-            </div>
+            {!compact && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {insight.metric && (
+                  <span
+                    className="text-xs font-mono px-1.5 py-0.5 rounded"
+                    style={{ color, backgroundColor: `${color}15` }}
+                  >
+                    {insight.metric}
+                  </span>
+                )}
+                {insight.tickers?.map(ticker => (
+                  <Link
+                    key={ticker}
+                    to={`/holdings/${ticker}`}
+                    className="text-xs px-1.5 py-0.5 rounded bg-[#37373d] text-[#4fc1ff] hover:bg-[#45454a] transition-colors"
+                  >
+                    {ticker}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

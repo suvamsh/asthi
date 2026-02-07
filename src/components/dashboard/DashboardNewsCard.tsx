@@ -10,12 +10,12 @@ interface DashboardNewsCardProps {
 }
 
 export function DashboardNewsCard({ articles, loading }: DashboardNewsCardProps) {
-  const topArticles = articles.slice(0, 4);
+  const topArticles = articles.slice(0, 3);
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-[#e0e0e0]">Latest News</h3>
+    <Card padding="sm" className="h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-[#e0e0e0]">Latest News</h3>
         <Link
           to="/news"
           className="flex items-center gap-1 text-xs text-[#4fc1ff] hover:text-[#6dd0ff] transition-colors"
@@ -26,15 +26,15 @@ export function DashboardNewsCard({ articles, loading }: DashboardNewsCardProps)
       </div>
 
       {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="h-20 bg-[#2d2d2d] rounded-lg animate-pulse" />
           ))}
         </div>
       ) : topArticles.length > 0 ? (
-        <div className="space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
           {topArticles.map((article) => (
-            <NewsArticleCard key={article.id} article={article} />
+            <NewsArticleCard key={article.id} article={article} compact />
           ))}
         </div>
       ) : (

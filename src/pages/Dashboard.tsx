@@ -38,6 +38,7 @@ export function Dashboard({
   assetsWithValues,
   history,
   loadingPrices,
+  loadingAssets,
   getHistoryForRange,
   onAddAsset,
   labels,
@@ -76,9 +77,9 @@ export function Dashboard({
   const isFiltered = selectedLabelIds.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="lg:h-[calc(100vh-6.5rem)] flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#e0e0e0]">Dashboard</h1>
+        <h1 className="text-xl font-semibold text-[#e0e0e0]">Dashboard</h1>
         <div className="flex items-center gap-3">
           <LabelFilter
             labels={labels}
@@ -97,21 +98,21 @@ export function Dashboard({
         totalNetWorth={isFiltered ? filteredTotal : totalNetWorth}
         change={isFiltered ? null : netWorthChange}
         changePercent={isFiltered ? null : netWorthChangePercent}
-        loading={loadingPrices}
+        loading={loadingAssets || loadingPrices}
         isFiltered={isFiltered}
       />
 
-      {/* Insights + News — 2-col grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DashboardInsightsCard insights={insights} loading={newsLoading} />
-        <DashboardNewsCard articles={portfolioNews} loading={newsLoading} />
+      {/* Charts row — Trend + Allocation side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-0 lg:flex-1">
+        <TrendChart history={history} getHistoryForRange={getHistoryForRange} loading={loadingAssets} />
+        <CustomAllocationChart breakdown={filteredBreakdown} assets={filteredAssets} loading={loadingAssets} />
       </div>
 
-      {/* Net Worth Trend — full width */}
-      <TrendChart history={history} getHistoryForRange={getHistoryForRange} />
-
-      {/* Asset Allocation — full width with view toggle */}
-      <CustomAllocationChart breakdown={filteredBreakdown} assets={filteredAssets} />
+      {/* Insights + News row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-0 lg:flex-1">
+        <DashboardInsightsCard insights={insights} loading={loadingAssets || newsLoading} />
+        <DashboardNewsCard articles={portfolioNews} loading={loadingAssets || newsLoading} />
+      </div>
 
       <AddAssetModal
         isOpen={isAddModalOpen}

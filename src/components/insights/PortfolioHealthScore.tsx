@@ -1,8 +1,6 @@
-import { RadialBarChart, RadialBar, ResponsiveContainer } from 'recharts';
-import { Card, CardHeader, CardTitle } from '../ui/Card';
 import type { PortfolioHealthScore as HealthScore } from '../../lib/insights/insightTypes';
 
-interface PortfolioHealthScoreProps {
+interface PortfolioHealthBannerProps {
   score: HealthScore;
 }
 
@@ -13,74 +11,82 @@ function getScoreColor(score: number): string {
   return '#f14c4c';
 }
 
-function SubScore({ label, value }: { label: string; value: number }) {
+function RingGauge({ value, size = 40 }: { value: number; size?: number }) {
+  const color = getScoreColor(value);
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  const center = size / 2;
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke="#3c3c3c"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-500"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-bold" style={{ color }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function MiniBar({ label, value }: { label: string; value: number }) {
   const color = getScoreColor(value);
   const barWidth = Math.max(4, value);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-[#8a8a8a] w-28 flex-shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-[#3c3c3c] rounded-full overflow-hidden">
+    <div className="flex items-center gap-2 min-w-[140px]">
+      <span className="text-[11px] text-[#8a8a8a] w-[72px] flex-shrink-0 truncate">{label}</span>
+      <div className="w-16 h-1.5 bg-[#3c3c3c] rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${barWidth}%`, backgroundColor: color }}
         />
       </div>
-      <span className="text-xs font-mono w-8 text-right" style={{ color }}>{value}</span>
+      <span className="text-[11px] font-mono w-5 text-right" style={{ color }}>{value}</span>
     </div>
   );
 }
 
-export function PortfolioHealthScoreCard({ score }: PortfolioHealthScoreProps) {
-  const color = getScoreColor(score.overall);
-
-  const chartData = [
-    { name: 'score', value: score.overall, fill: color },
-  ];
-
+export function PortfolioHealthBanner({ score }: PortfolioHealthBannerProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Portfolio Health Score</CardTitle>
-      </CardHeader>
-
-      <div className="flex flex-col sm:flex-row items-center gap-4">
-        {/* Gauge */}
-        <div className="relative w-36 h-36 flex-shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              cx="50%"
-              cy="50%"
-              innerRadius="70%"
-              outerRadius="100%"
-              startAngle={210}
-              endAngle={-30}
-              data={chartData}
-              barSize={10}
-            >
-              <RadialBar
-                dataKey="value"
-                cornerRadius={5}
-                background={{ fill: '#3c3c3c' }}
-                isAnimationActive={true}
-              />
-            </RadialBarChart>
-          </ResponsiveContainer>
-          {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold" style={{ color }}>{score.overall}</span>
-            <span className="text-[10px] text-[#8a8a8a]">/ 100</span>
-          </div>
-        </div>
-
-        {/* Sub-scores */}
-        <div className="flex-1 w-full space-y-2">
-          <SubScore label="Concentration" value={score.concentration} />
-          <SubScore label="Sector Diversity" value={score.sectorDiversity} />
-          <SubScore label="Type Balance" value={score.typeBalance} />
-          <SubScore label="Holding Count" value={score.holdingCount} />
+    <div className="bg-[#252526] border border-[#3c3c3c] rounded-lg px-4 py-3 flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3">
+        <RingGauge value={score.overall} />
+        <div className="flex-shrink-0">
+          <div className="text-xs font-medium text-[#e0e0e0]">Health Score</div>
+          <div className="text-[10px] text-[#6e6e6e]">/ 100</div>
         </div>
       </div>
-    </Card>
+
+      <div className="h-8 w-px bg-[#3c3c3c] hidden sm:block" />
+
+      <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap">
+        <MiniBar label="Concentration" value={score.concentration} />
+        <MiniBar label="Sectors" value={score.sectorDiversity} />
+        <MiniBar label="Type Balance" value={score.typeBalance} />
+        <MiniBar label="Holdings" value={score.holdingCount} />
+      </div>
+    </div>
   );
 }

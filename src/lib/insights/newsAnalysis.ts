@@ -1,7 +1,8 @@
 import type { NewsArticle, AssetWithValue } from '../../types';
-import type { Insight, ImpactChain } from './insightTypes';
+import type { Insight, ImpactChain, AffectedTickerDetail } from './insightTypes';
 import { IMPACT_CHAINS } from './newsImpactMap';
 import { getTickerSectorSync } from '../sectorMapping';
+import { getTotalCostBasis } from '../calculations';
 
 // --- Sentiment Analysis ---
 
@@ -121,12 +122,16 @@ export function generateVolumeInsights(
 export function matchImpactChains(
   articles: NewsArticle[],
   assets: AssetWithValue[],
+  totalPortfolioValue: number,
 ): ImpactChain[] {
   if (articles.length === 0 || assets.length === 0) return [];
 
   // Build lookup: sector/industry -> tickers in portfolio
   const sectorTickers = new Map<string, Set<string>>();
   const industryTickers = new Map<string, Set<string>>();
+
+  // Build ticker -> aggregated asset data (handles multiple lots)
+  const tickerAssets = new Map<string, AssetWithValue[]>();
 
   for (const asset of assets) {
     if (asset.is_account || !asset.ticker) continue;
@@ -140,46 +145,87 @@ export function matchImpactChains(
 
     if (!industryTickers.has(info.industry)) industryTickers.set(info.industry, new Set());
     industryTickers.get(info.industry)!.add(asset.ticker);
+
+    if (!tickerAssets.has(asset.ticker)) tickerAssets.set(asset.ticker, []);
+    tickerAssets.get(asset.ticker)!.push(asset);
   }
 
-  const chains: ImpactChain[] = [];
-  const seenThemes = new Set<string>();
+  // Match articles to themes, accumulating all matching articles per theme
+  const themeArticles = new Map<string, { title: string; url: string; source: string; publishedAt: string }[]>();
 
   for (const article of articles) {
     const text = `${article.title} ${article.description}`.toLowerCase();
 
     for (const template of IMPACT_CHAINS) {
-      if (seenThemes.has(template.theme)) continue;
-
       const matched = template.keywords.some(kw => text.includes(kw));
       if (!matched) continue;
 
-      // Find affected tickers in user's portfolio
-      const affected = new Set<string>();
-      for (const sector of template.affectedSectors) {
-        const tickers = sectorTickers.get(sector);
-        if (tickers) tickers.forEach(t => affected.add(t));
+      if (!themeArticles.has(template.theme)) themeArticles.set(template.theme, []);
+      const existing = themeArticles.get(template.theme)!;
+      // Deduplicate by URL
+      if (!existing.some(a => a.url === article.url)) {
+        existing.push({
+          title: article.title,
+          url: article.url,
+          source: article.source,
+          publishedAt: article.publishedAt,
+        });
       }
-      for (const industry of template.affectedIndustries) {
-        const tickers = industryTickers.get(industry);
-        if (tickers) tickers.forEach(t => affected.add(t));
-      }
-
-      if (affected.size === 0) continue;
-
-      seenThemes.add(template.theme);
-      chains.push({
-        id: `impact-${template.theme}`,
-        headline: article.title,
-        theme: template.theme,
-        impact: template.impact,
-        affectedTickers: Array.from(affected).sort(),
-      });
-
-      // Limit to 8 chains
-      if (chains.length >= 8) return chains;
     }
   }
 
-  return chains;
+  // Build chains for themes that matched at least one article
+  const chains: ImpactChain[] = [];
+
+  for (const template of IMPACT_CHAINS) {
+    const matchedArticles = themeArticles.get(template.theme);
+    if (!matchedArticles || matchedArticles.length === 0) continue;
+
+    // Find affected tickers in user's portfolio
+    const affectedTickerSet = new Set<string>();
+    for (const sector of template.affectedSectors) {
+      const tickers = sectorTickers.get(sector);
+      if (tickers) tickers.forEach(t => affectedTickerSet.add(t));
+    }
+    for (const industry of template.affectedIndustries) {
+      const tickers = industryTickers.get(industry);
+      if (tickers) tickers.forEach(t => affectedTickerSet.add(t));
+    }
+
+    if (affectedTickerSet.size === 0) continue;
+
+    // Calculate exposure and gain/loss per ticker
+    let exposureValue = 0;
+    const affectedTickers: AffectedTickerDetail[] = [];
+
+    for (const ticker of Array.from(affectedTickerSet).sort()) {
+      const lots = tickerAssets.get(ticker);
+      if (!lots) continue;
+
+      const currentValue = lots.reduce((sum, a) => sum + a.calculated_value, 0);
+      const costBasis = lots.reduce((sum, a) => sum + getTotalCostBasis(a), 0);
+      const gainLoss = costBasis > 0 ? currentValue - costBasis : 0;
+      const gainLossPercent = costBasis > 0 ? (gainLoss / costBasis) * 100 : 0;
+
+      exposureValue += currentValue;
+      affectedTickers.push({ ticker, currentValue, costBasis, gainLoss, gainLossPercent });
+    }
+
+    const exposurePercent = totalPortfolioValue > 0 ? (exposureValue / totalPortfolioValue) * 100 : 0;
+
+    chains.push({
+      id: `impact-${template.theme}`,
+      theme: template.theme,
+      direction: template.direction,
+      impact: template.impact,
+      articles: matchedArticles,
+      exposureValue,
+      exposurePercent,
+      affectedTickers,
+    });
+  }
+
+  // Sort by exposure descending, cap at 8
+  chains.sort((a, b) => b.exposureValue - a.exposureValue);
+  return chains.slice(0, 8);
 }

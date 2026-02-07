@@ -82,8 +82,8 @@ export function useInsights(
 
   // Impact chains
   const impactChains = useMemo(
-    () => matchImpactChains(news, assetsWithValues),
-    [news, assetsWithValues],
+    () => matchImpactChains(news, assetsWithValues, totalNetWorth),
+    [news, assetsWithValues, totalNetWorth],
   );
 
   // Filter dismissed

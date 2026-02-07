@@ -206,6 +206,7 @@ function AppContent() {
               assetsWithValues={assetsWithValues}
               breakdown={breakdown}
               totalNetWorth={totalNetWorth}
+              loading={assetsLoading || loadingPrices}
             />
           }
         />

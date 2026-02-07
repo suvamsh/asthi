@@ -36,10 +36,23 @@ export interface SectorAllocation {
   diff: number;
 }
 
+export type ImpactDirection = 'bullish' | 'bearish' | 'mixed';
+
+export interface AffectedTickerDetail {
+  ticker: string;
+  currentValue: number;
+  costBasis: number;
+  gainLoss: number;
+  gainLossPercent: number;
+}
+
 export interface ImpactChain {
   id: string;
-  headline: string;
   theme: string;
+  direction: ImpactDirection;
   impact: string;
-  affectedTickers: string[];
+  articles: { title: string; url: string; source: string; publishedAt: string }[];
+  exposureValue: number;
+  exposurePercent: number;
+  affectedTickers: AffectedTickerDetail[];
 }

@@ -99,3 +99,69 @@ export interface NewsSector {
   weight: number;
   assetCount: number;
 }
+
+// --- Strategy Types ---
+
+export type InvestmentPhilosophy =
+  | 'boglehead'
+  | 'growth'
+  | 'value'
+  | 'dividend'
+  | 'index'
+  | 'balanced'
+  | 'aggressive_growth'
+  | 'income'
+  | 'custom';
+
+export type TimeHorizon = 'short' | 'medium' | 'long' | 'retirement_target';
+
+export type RiskTolerance = 'conservative' | 'moderate' | 'aggressive';
+
+export type SectorPreference = 'overweight' | 'neutral' | 'underweight';
+
+export type InvestmentGoal =
+  | 'retirement'
+  | 'wealth_building'
+  | 'income_generation'
+  | 'emergency_fund'
+  | 'education'
+  | 'house_purchase'
+  | 'custom';
+
+export interface TargetAssetAllocation {
+  stocks: number;
+  bonds: number;
+  real_estate: number;
+  cash: number;
+  gold: number;
+  crypto: number;
+  other: number;
+}
+
+export type SectorPreferences = Record<string, SectorPreference>;
+
+export interface InvestmentGoalEntry {
+  type: InvestmentGoal;
+  label?: string;
+  targetAmount?: number;
+  targetDate?: string;
+}
+
+export interface UserStrategyData {
+  philosophy: InvestmentPhilosophy;
+  timeHorizon: TimeHorizon;
+  retirementYear?: number;
+  riskTolerance: RiskTolerance;
+  targetAllocation: TargetAssetAllocation;
+  sectorPreferences: SectorPreferences;
+  goals: InvestmentGoalEntry[];
+  notes?: string;
+}
+
+export interface UserStrategy {
+  id: string;
+  user_id: string;
+  strategy: UserStrategyData;
+  created_at: string;
+  updated_at: string;
+}

@@ -14,6 +14,7 @@ import { AssetDetail } from './pages/AssetDetail';
 import { StockHoldings } from './pages/StockHoldings';
 import { News } from './pages/News';
 import { Insights } from './pages/Insights';
+import { Strategy } from './pages/Strategy';
 import { Card } from './components/ui/Card';
 
 function SetupRequired() {
@@ -206,6 +207,18 @@ function AppContent() {
               assetsWithValues={assetsWithValues}
               breakdown={breakdown}
               totalNetWorth={totalNetWorth}
+              loading={assetsLoading || loadingPrices}
+            />
+          }
+        />
+        <Route
+          path="/strategy"
+          element={
+            <Strategy
+              assetsWithValues={assetsWithValues}
+              breakdown={breakdown}
+              totalNetWorth={totalNetWorth}
+              userId={user.id}
               loading={assetsLoading || loadingPrices}
             />
           }

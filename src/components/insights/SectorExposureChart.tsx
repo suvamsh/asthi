@@ -19,19 +19,14 @@ interface DeviationRow {
   hasExposure: boolean;
 }
 
-export function SectorExposureChart({ allocations }: SectorExposureChartProps) {
+function SectorExposureInner({ allocations }: SectorExposureChartProps) {
   const held = allocations.filter(a => a.portfolioWeight > 0.001);
 
   if (held.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Sector Exposure</CardTitle>
-        </CardHeader>
-        <div className="h-32 flex items-center justify-center text-[#8a8a8a] text-sm">
-          No sector data available
-        </div>
-      </Card>
+      <div className="h-32 flex items-center justify-center text-[#8a8a8a] text-sm">
+        No sector data available
+      </div>
     );
   }
 
@@ -55,11 +50,7 @@ export function SectorExposureChart({ allocations }: SectorExposureChartProps) {
     .sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sector Exposure</CardTitle>
-      </CardHeader>
-
+    <>
       {/* Donut chart */}
       <div className="h-[160px] -mt-2">
         <ResponsiveContainer width="100%" height="100%">
@@ -123,6 +114,21 @@ export function SectorExposureChart({ allocations }: SectorExposureChartProps) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export function SectorExposureContent({ allocations }: SectorExposureChartProps) {
+  return <SectorExposureInner allocations={allocations} />;
+}
+
+export function SectorExposureChart({ allocations }: SectorExposureChartProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sector Exposure</CardTitle>
+      </CardHeader>
+      <SectorExposureInner allocations={allocations} />
     </Card>
   );
 }

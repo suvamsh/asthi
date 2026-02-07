@@ -12,17 +12,17 @@ export function Layout({ user, onSignOut, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#1e1e1e]">
+    <div className="h-dvh bg-[#1e1e1e] flex flex-col overflow-hidden">
       <Header
         user={user}
         onMenuClick={() => setSidebarOpen(true)}
         onSignOut={onSignOut}
       />
 
-      <div className="flex">
+      <div className="flex flex-1 min-h-0">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full overflow-y-auto">
           {children}
         </main>
       </div>

@@ -88,6 +88,51 @@ export async function fetchYahooNewsRSS(tickers: string[]): Promise<NewsArticle[
   }
 }
 
+const REDDIT_SUBREDDITS = ['stocks', 'wallstreetbets', 'investing'];
+const REDDIT_MIN_SCORE = 10;
+
+export async function fetchRedditNews(tickers: string[]): Promise<NewsArticle[]> {
+  if (tickers.length === 0) return [];
+
+  const allArticles: NewsArticle[] = [];
+
+  for (const ticker of tickers) {
+    for (const subreddit of REDDIT_SUBREDDITS) {
+      const redditUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(ticker)}&sort=relevance&t=week&restrict_sr=1&limit=5`;
+      const url = `${CORS_PROXY}${encodeURIComponent(redditUrl)}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
+        const json = await response.json();
+
+        const posts = json?.data?.children ?? [];
+        for (const post of posts) {
+          const d = post.data;
+          if (!d || d.score < REDDIT_MIN_SCORE) continue;
+
+          const permalink = d.permalink as string;
+          const fullUrl = `https://www.reddit.com${permalink}`;
+          const selftext = (d.selftext as string) || '';
+
+          allArticles.push({
+            id: fullUrl,
+            title: d.title as string,
+            description: selftext.length > 200 ? selftext.slice(0, 200) + '...' : selftext,
+            url: fullUrl,
+            source: `r/${subreddit}`,
+            publishedAt: new Date((d.created_utc as number) * 1000).toISOString(),
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching Reddit r/${subreddit} for ${ticker}:`, error);
+      }
+    }
+  }
+
+  return allArticles;
+}
+
 export function deduplicateNews(articles: NewsArticle[]): NewsArticle[] {
   const seen = new Set<string>();
   return articles.filter((article) => {

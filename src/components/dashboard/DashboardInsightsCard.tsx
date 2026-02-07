@@ -17,13 +17,12 @@ const severityOrder: Record<InsightSeverity, number> = {
 };
 
 export function DashboardInsightsCard({ insights, loading }: DashboardInsightsCardProps) {
-  const topInsights = [...insights]
-    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
-    .slice(0, 2);
+  const sortedInsights = [...insights]
+    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
   return (
     <Card padding="sm" className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <h3 className="text-sm font-semibold text-[#e0e0e0]">Top Insights</h3>
         <Link
           to="/insights"
@@ -35,15 +34,15 @@ export function DashboardInsightsCard({ insights, loading }: DashboardInsightsCa
       </div>
 
       {loading ? (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-16 bg-[#2d2d2d] rounded-lg animate-pulse" />
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-10 bg-[#2d2d2d] rounded animate-pulse" />
           ))}
         </div>
-      ) : topInsights.length > 0 ? (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-          {topInsights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} compact />
+      ) : sortedInsights.length > 0 ? (
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
+          {sortedInsights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
           ))}
         </div>
       ) : (

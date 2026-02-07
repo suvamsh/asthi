@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchGoogleNewsRSS, fetchYahooNewsRSS, deduplicateNews } from '../lib/newsApi';
+import { fetchGoogleNewsRSS, fetchYahooNewsRSS, fetchRedditNews, deduplicateNews } from '../lib/newsApi';
 import { parseNewsQuery } from '../lib/newsQueryParser';
 import { deriveSectorsFromAssets } from '../lib/sectorMapping';
 import type { AssetWithValue, NewsArticle, NewsSector } from '../types';
@@ -107,6 +107,12 @@ export function useNews(assets: AssetWithValue[]) {
           const articles = await fetchGoogleNewsRSS(query);
           allArticles.push(...articles);
         }
+      }
+
+      // Fetch Reddit posts for top tickers
+      if (tickers.length > 0) {
+        const redditArticles = await fetchRedditNews(tickers.slice(0, 5));
+        allArticles.push(...redditArticles);
       }
 
       // If no assets at all, fetch general financial news

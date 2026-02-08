@@ -15,6 +15,7 @@ import { StockHoldings } from './pages/StockHoldings';
 import { News } from './pages/News';
 import { Insights } from './pages/Insights';
 import { Strategy } from './pages/Strategy';
+import { ResearchPage } from './agent-asthi/components/ResearchPage';
 import { Card } from './components/ui/Card';
 
 function SetupRequired() {
@@ -219,6 +220,20 @@ function AppContent() {
               breakdown={breakdown}
               totalNetWorth={totalNetWorth}
               userId={user.id}
+              loading={assetsLoading || loadingPrices}
+            />
+          }
+        />
+        <Route
+          path="/research"
+          element={
+            <ResearchPage
+              assetsWithValues={assetsWithValues}
+              breakdown={breakdown}
+              totalNetWorth={totalNetWorth}
+              userId={user.id}
+              stockPrices={stockPrices}
+              goldPrice={goldPrice}
               loading={assetsLoading || loadingPrices}
             />
           }
